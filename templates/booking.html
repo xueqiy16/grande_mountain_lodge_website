@@ -1,0 +1,1932 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/airbnb.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <title>Available Options - Grande Mountain Lodge</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="/static/assets/css/main.css" />
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            min-height: 100%;
+            background: #ffffff;
+        }
+        .fa-solid, .fas { font-weight: 900 !important; }
+        body { background: #ffffff; color: #333; font-family: 'Inter', sans-serif; }
+        
+        /* Layout */
+        .booking-container { max-width: 1200px; margin: 75px auto; padding: 20px; }
+        .main-content { display: flex; gap: 30px; margin-top: 30px; }
+        .rooms-column { flex: 8; }
+        .cart-column { flex: 4; }
+
+        /* Search Bar Enhancements */
+        .search-summary {
+            display: flex; align-items: center; background: white; border-radius: 50px;
+            padding: 10px 25px; border: 1px solid #e0e0e0; box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        }
+        .input-stack label { display: block; font-size: 0.65rem; color: #888; text-transform: uppercase; margin: 0; }
+        .text-minimal { border: none; background: transparent; font-weight: 600; font-size: 0.95rem; padding: 0; width: 100%; outline: none; cursor: pointer; }
+        
+        /* Room Cards */
+        .room-card { 
+            background: white; border-radius: 15px; overflow: hidden; display: flex; 
+            margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); height: 360px;
+        }
+        .room-image { width: 40%; background-size: cover; background-position: center; position: relative; }
+        .room-details { width: 60%; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; }
+        .room-title { font-size: 1.2rem; font-weight: 700; color: #111; }
+        .price { font-size: 1.3rem; font-weight: bold; }
+        .book-btn { background: #000; color: #fff; border: none; padding: 8px 25px; border-radius: 8px; cursor: pointer; }
+
+        /* Sidebar Cart */
+        .cart-card { background: white; border-radius: 15px; padding: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); position: sticky; top: 100px; }
+        .cart-item { border-bottom: 1px solid #eee; padding: 15px 0; }
+        .reserve-btn { background: #1a2b48; color: white; width: 100%; border: none; padding: 15px; border-radius: 8px; font-weight: bold; margin-top: 20px; }
+
+        /* Notification Alert */
+        #capacity-alert {
+            display: none; background: #fcf4e7; border: 1px solid #d4a373; color: #856404;
+            padding: 20px; border-radius: 8px; margin-bottom: 20px; align-items: center; gap: 15px;
+        }
+
+        .search-divider-slim { width: 1px; height: 40px; background: #eee; margin: 0 20px; }
+        .guest-popup { display: none; position: absolute; top: 70px; background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border-radius: 15px; padding: 20px; width: 300px; z-index: 1000; }
+        
+        .features-list { 
+            display: flex; 
+            flex-direction: column; 
+            /* Use a negative gap to pull lines even tighter if 0px isn't enough */
+            gap: -2px;               
+            font-size: 0.8rem;      
+            color: #666; 
+            margin-bottom: 15px; 
+            margin-top: 10px;
+            /* Tightens the space between the top and bottom of the letters */
+            line-height: 1.2; 
+        }
+
+        /* Force the spans inside to have zero margin */
+        .features-list span {
+            margin: 0 !important;
+            padding: 0 !important;
+            display: flex;
+            align-items: center;
+        }
+
+        .features-list i {
+            font-size: 0.75rem;
+            width: 20px; 
+            /* Ensures the icon doesn't add extra vertical height */
+            line-height: 1; 
+        }
+
+        /* Fixed: Calendar starts hidden */
+        .calendar-overlay {
+            display: none; 
+            position: fixed;
+            z-index: 3000;
+            left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.45);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .calendar-modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            min-width: 700px !important;
+            width: auto;
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            z-index: 3001;
+        }
+
+        /* Hide Small Picker Boxes */
+        .flatpickr-input + input { border: none !important; background: transparent !important; box-shadow: none !important; }
+        
+        /* 1. Target the main modal heading to reduce its bottom space */
+        #amenities-modal h2 {
+            margin-bottom: 0.5rem !important;
+            font-size: 1.5rem; /* Optional: adjust size if needed */
+            font-weight: 1000;
+        }
+
+        /* 2. Target the first category title specifically to remove its top space */
+        #modal-body-content .amenity-category-title:first-child {
+            margin-top: 1 !important;
+        }
+
+        /* 3. Adjust general category title margins for a tighter fit */
+        .amenity-category-title {
+            text-align: center;
+            font-weight: 1000;
+            text-transform: uppercase;
+            color: #111;
+            font-size: 1.1rem;
+            margin: 1rem 0 0.5rem 0; /* Reduced top margin from 2em/1.5rem */
+        }
+
+        /* --- Search Button --- */
+        .search-btn-minimal {
+            background: #000;
+            color: #fff;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: background 0.3s ease; /* Smooth transition */
+            margin-left: auto; /* Pushes button to the far right */
+        }
+
+        .search-btn-minimal:hover {
+            background: #444; /* Changes to dark grey on hover */
+        }
+
+        /* Updated Logic: Scale the WRAPPER, not just the image, so the button follows the corner */
+        .image-modal-img {
+            max-width: 50vw;
+            max-height: 55vh;
+            display: block;
+            border-radius: 10px;
+            object-fit: contain;
+        }
+
+        /* Logic: Position the circle on the top-right corner */
+        .close-image-btn {
+            position: absolute;
+            top: -12px;
+            right: -12px;
+
+            background: #000;
+            color: #fff;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            cursor: pointer;
+            z-index: 10;
+            border: 2px solid white;
+
+            font-size: 20px;
+            line-height: 1;
+            transition: transform 0.2s ease;
+        }
+        
+        #imageModal .inline-wrapper {
+            position: relative;
+            display: inline-block;
+            margin: auto;
+
+            transform: scale(0.8);
+            transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+            opacity: 0;
+        }
+
+        /* When the modal is shown, scale the whole unit up */
+        #imageModal.show .inline-wrapper {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        #imageModal .inline-wrapper:hover .close-image-btn {
+            transform: scale(1.1);
+        }
+
+        #imageModal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+        }
+
+        /* Styling for the Magnifying Glass Icon Wrapper */
+        .expand-icon {
+            position: absolute;
+            bottom: 12px;           /* Offset from the bottom */
+            right: 12px;            /* Offset from the right */
+            background: rgba(0, 0, 0, 0.5); /* Semi-transparent dark circle */
+            color: white;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;     /* Makes it a perfect circle */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            z-index: 5;
+            border: 1px solid rgba(255, 255, 255, 0.2); /* Subtle light border */
+        }
+
+        /* Icon size and specific styling */
+        .expand-icon i {
+            font-size: 0.9rem;      /* Adjusted for the 'Studio Double' look */
+            pointer-events: none;   /* Ensures click goes to the parent div */
+        }
+
+        /* Interaction logic: Subtle grow and brighten on hover */
+        .room-image:hover .expand-icon {
+            background: rgba(0, 0, 0, 0.8);
+            transform: scale(1.1);
+        }
+
+        /* --- SEARCH LOADING OVERLAY --- */
+        #search-loader {
+            position: fixed;
+            inset: 0;
+            background: rgba(248, 247, 245, 0.92);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 5000;
+            backdrop-filter: blur(3px);
+        }
+
+        /* Loader container */
+        .loader-card {
+            text-align: center;
+            animation: fadeIn 0.4s ease forwards;
+        }
+
+        /* Compass-style loader */
+        .compass-loader {
+            width: 64px;
+            height: 64px;
+            border: 3px solid #ddd;
+            border-top-color: #000;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 18px;
+        }
+
+        /* Text */
+        .loader-text {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #333;
+            letter-spacing: 0.4px;
+        }
+
+        /* Animations */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+    </style>
+</head>
+<body>
+    <div id="search-loader">
+        <div class="loader-card">
+            <div class="compass-loader"></div>
+            <div class="loader-text">Checking availability…</div>
+        </div>
+    </div>
+    <div class="booking-container">
+        <header id="header" class="mb-5">
+            <div class="d-flex justify-content-between align-items: center;">
+                <h1 id="logo"><a href="/"><img src="/static/images/GML_Logo_white.png" height="60"></a></h1>
+                <nav id="nav">
+                    <ul class="list-inline m-0">
+                        <li class="list-inline-item mx-3"><a href="/" class="white">Home</a></li>
+                        <li class="list-inline-item mx-3"><a href="/rooms" class="white">Rooms</a></li>
+                        <li class="list-inline-item mx-3"><a href="/travel-guide" class="white">Travel Guide</a></li>
+                        <li class="list-inline-item mx-3"><a href="/contact" class="white">Contact</a></li>
+                        <li class="list-inline-item mx-3"><a href="/booking" class="button primary">BOOK NOW</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </header>
+
+        <div class="search-summary">
+            <div class="search-item position-relative" style="flex: 1.5; cursor: pointer;" onclick="togglePopup()">
+                <div class="d-flex align-items-center gap-3">
+                    <i class="fa-solid fa-user-group"></i>
+                    <div class="input-stack">
+                        <label>Guests</label>
+                        <div id="guest-summary">2 Adults</div>
+                    </div>
+                </div>
+                <div id="guest-popup" class="guest-popup" onclick="event.stopPropagation()">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div><strong>Adults</strong><br><small>Ages 18+</small></div>
+                        <div class="d-flex align-items-center gap-3">
+                            <button type="button" class="btn btn-outline-dark btn-sm rounded-circle" onclick="changeCount('adults', -1)">-</button>
+                            <span id="adults-count">2</span>
+                            <button type="button" class="btn btn-outline-dark btn-sm rounded-circle" onclick="changeCount('adults', 1)">+</button>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div><strong>Children</strong><br><small>Ages 0-17</small></div>
+                        <div class="d-flex align-items-center gap-3">
+                            <button type="button" class="btn btn-outline-dark btn-sm rounded-circle" onclick="changeCount('children', -1)">-</button>
+                            <span id="children-count">0</span>
+                            <button type="button" class="btn btn-outline-dark btn-sm rounded-circle" onclick="changeCount('children', 1)">+</button>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div><strong>Pets</strong><br><small>All pets are welcome!</small></div>
+                        <div class="d-flex align-items-center gap-3">
+                            <button type="button" class="btn btn-outline-dark btn-sm rounded-circle" onclick="changeCount('pets', -1)">-</button>
+                            <span id="pets-count">0</span>
+                            <button type="button" class="btn btn-outline-dark btn-sm rounded-circle" onclick="changeCount('pets', 1)">+</button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-dark w-100 btn-sm" onclick="togglePopup()">Apply</button>
+                </div>
+            </div>
+
+            <div class="search-divider-slim"></div>
+
+            <div class="search-item" style="flex: 1;" onclick="openCalendar()">
+                <div class="d-flex align-items-center gap-3">
+                    <i class="fa-solid fa-calendar"></i>
+                    <div class="input-stack">
+                        <label>Check In</label>
+                        <input type="text" id="checkin" class="text-minimal" readonly>
+                    </div>
+                </div>
+            </div>
+
+            <div class="search-divider-slim"></div>
+
+            <div class="search-item" style="flex: 1;" onclick="openCalendar()">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="input-stack">
+                        <label>Check Out</label>
+                        <input type="text" id="checkout" class="text-minimal" readonly>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" class="search-btn-minimal ms-4" onclick="startSearchWithLoader()">Search</button>
+        </div>
+
+        <div id="calendar-modal" class="calendar-overlay" onclick="closeCalendar()">
+            <div class="calendar-modal-content" onclick="event.stopPropagation()">
+                <div id="inline-calendar"></div>
+                <div class="mt-4 d-flex justify-content-between align-items-center">
+                    <div id="selected-dates-info" class="text-muted small">Select dates</div>
+                    <button type="button" class="btn btn-dark" onclick="closeCalendar()">Apply Dates</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="rooms-column">
+                <h2 class="mb-4">Available Options</h2>
+                
+                <div id="capacity-alert">
+                    <i class="fa-solid fa-triangle-exclamation fa-2x"></i>
+                    <div>
+                        <strong id="alert-text">No rooms available for 5 guests.</strong><br>
+                        <span>Try reducing the number of guests or booking multiple rooms.</span>
+                    </div>
+                </div>
+                
+                <!-- Room Cards -->
+                <div id="rooms-list">
+                    <div class="room-card" data-capacity="2" data-priority="1">
+                        <div class="room-image" style="background-image: url('/static/images/STD-Q-NS.jpg'); background-position: 65% center;" onclick="openModal('/static/images/STD-Q-NS.jpg')">
+                            <div class="expand-icon">
+                                <i class="fa-solid fa-magnifying-glass-plus"></i>
+                            </div>
+                        </div>
+                        <div class="room-details">
+                            <div>
+                                <span class="badge bg-light text-dark mb-2">Non-Smoking</span>
+                                <div class="room-title">Standard Queen Non-Smoking</div>
+                                <div class="features-list">
+                                    <span><i class="fa-solid fa-bed"></i> 1 Queen Bed</span><br>
+                                    <span><i class="fa-sharp fa-solid fa-people-group"></i> 2 Guests</span><br>
+                                    <span><i class="fa-solid fa-toilet-paper"></i> Ensuite Bathroom</span>
+                                </div>
+                                <div class="mt-2">
+                                    <a href="javascript:void(0)" class="view-amenities" onclick="openAmenitiesModal('modal-standard')">
+                                        Detailed Amenities <span class="icon solid fa-chevron-down"></span>
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="price">$84.99 <small class="fw-normal">/ night</small></div>
+                                <button class="book-btn" onclick="addToCart('Standard Queen', 84.99)">Book</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="room-card" data-capacity="2" data-priority="2">
+                        <div class="room-image" style="background-image: url('/static/images/STU-Q-NS.jpg'); background-position: 65% center;" onclick="openModal('/static/images/STU-Q-NS.jpg')">
+                            <div class="expand-icon">
+                                <i class="fa-solid fa-magnifying-glass-plus"></i>
+                            </div>
+                        </div>
+                        <div class="room-details">
+                            <div>
+                                <span class="badge bg-light text-dark mb-2">Non-Smoking</span>
+                                <div class="room-title">Studio Queen Non-Smoking</div>
+                                <div class="features-list">
+                                    <span><i class="fa-solid fa-bed"></i> 1 Queen Bed</span><br>
+                                    <span><i class="fa-sharp fa-solid fa-people-group"></i> Accomodates 2 Guests</span><br>
+                                    <span><i class="fa-solid fa-toilet-paper"></i> Ensuite Bathroom</span><br>
+                                    <span><i class="fa-solid fa-utensils"></i> Kitchenette</span>
+                                </div>
+                                <div class="mt-2">
+                                    <a href="javascript:void(0)" class="view-amenities" onclick="openAmenitiesModal('modal-standard')">
+                                        Detailed Amenities <span class="icon solid fa-chevron-down"></span>
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="price">$89.99 <small class="fw-normal">/ night</small></div>
+                                <button class="book-btn" onclick="addToCart('Studio Queen Non-Smoking', 89.99)">Book</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="room-card" data-capacity="2" data-priority="3">
+                        <div class="room-image" style="background-image: url('/static/images/STU-Q-NS.jpg'); background-position: 65% center;" onclick="openModal('/static/images/STU-Q-NS.jpg')">
+                            <div class="expand-icon">
+                                <i class="fa-solid fa-magnifying-glass-plus"></i>
+                            </div>
+                        </div>
+                        <div class="room-details">
+                            <div>
+                                <span class="badge bg-light text-dark mb-2">Smoking Allowed</span>
+                                <div class="room-title">Studio Queen Smoking</div>
+                                <div class="features-list">
+                                    <span><i class="fa-solid fa-bed"></i> 1 Queen Bed</span><br>
+                                    <span><i class="fa-sharp fa-solid fa-people-group"></i> Accomodates 2 Guests</span><br>
+                                    <span><i class="fa-solid fa-toilet-paper"></i> Ensuite Bathroom</span><br>
+                                    <span><i class="fa-solid fa-utensils"></i> Kitchenette</span>
+                                </div>
+                                <div class="mt-2">
+                                    <a href="javascript:void(0)" class="view-amenities" onclick="openAmenitiesModal('modal-standard')">
+                                        Detailed Amenities <span class="icon solid fa-chevron-down"></span>
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="price">$89.99 <small class="fw-normal">/ night</small></div>
+                                <button class="book-btn" onclick="addToCart('Studio Queen Smoking', 89.99)">Book</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="room-card" data-capacity="2" data-priority="4">
+                        <div class="room-image" style="background-image: url('/static/images/STE-Q-NS.JPG'); background-position: 100% center;" onclick="openModal('/static/images/STE-Q-NS.JPG')">
+                                <div class="expand-icon">
+                                <i class="fa-solid fa-magnifying-glass-plus"></i>
+                            </div>
+                        </div>
+                        <div class="room-details">
+                            <div>
+                                <span class="badge bg-light text-dark mb-2">Non-Smoking</span>
+                                <div class="room-title">Suite Queen Non-Smoking</div>
+                                <div class="features-list">
+                                    <span><i class="fa-solid fa-bed"></i> 1 Queen Bed in separate bedroom</span><br>
+                                    <span><i class="fa-sharp fa-solid fa-people-group"></i> Accomodates 2 Guests</span><br>
+                                    <span><i class="fa-solid fa-toilet-paper"></i> Ensuite Bathroom</span><br>
+                                    <span><i class="fa-solid fa-utensils"></i> Kitchenette</span><br>
+                                    <span><i class="fa-solid fa-chair"></i> Living Room</span>
+                                </div>
+                                <div class="mt-2">
+                                    <a href="javascript:void(0)" class="view-amenities" onclick="openAmenitiesModal('modal-standard')">
+                                        Detailed Amenities <span class="icon solid fa-chevron-down"></span>
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="price">$104.99 <small class="fw-normal">/ night</small></div>
+                                <button class="book-btn" onclick="addToCart('Suite Queen Non-Smoking', 104.99)">Book</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="room-card" data-capacity="2" data-priority="5">
+                        <div class="room-image" style="background-image: url('/static/images/STE-K-NS.JPG'); background-position: 75% center;" onclick="openModal('/static/images/STE-K-NS.JPG')">
+                                <div class="expand-icon">
+                                <i class="fa-solid fa-magnifying-glass-plus"></i>
+                            </div>
+                        </div>
+                        <div class="room-details">
+                            <div>
+                                <span class="badge bg-light text-dark mb-2">Non-Smoking</span>
+                                <div class="room-title">Suite King Non-Smoking</div>
+                                <div class="features-list">
+                                    <span><i class="fa-solid fa-bed"></i> 1 King Bed</span><br>
+                                    <span><i class="fa-sharp fa-solid fa-people-group"></i> Accomodates 2 Guests</span><br>
+                                    <span><i class="fa-solid fa-toilet-paper"></i> Ensuite Bathroom</span><br>
+                                    <span><i class="fa-solid fa-utensils"></i> Kitchenette</span><br>
+                                    <span><i class="fa-solid fa-chair"></i> Dining Room with 4 chairs</span>
+                                </div>
+                                <div class="mt-2">
+                                    <a href="javascript:void(0)" class="view-amenities" onclick="openAmenitiesModal('modal-standard')">
+                                        Detailed Amenities <span class="icon solid fa-chevron-down"></span>
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="price">$104.99 <small class="fw-normal">/ night</small></div>
+                                <button class="book-btn" onclick="addToCart('Suite King Non-Smoking', 104.99)">Book</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="room-card" data-capacity="4" data-priority="6">
+                        <div class="room-image" style="background-image: url('/static/images/STU-QQ-NS.jpg'); background-position: 45% center;" onclick="openModal('/static/images/STU-QQ-NS.jpg')">
+                                <div class="expand-icon">
+                                <i class="fa-solid fa-magnifying-glass-plus"></i>
+                            </div>
+                        </div>
+                        <div class="room-details">
+                            <div>
+                                <span class="badge bg-light text-dark mb-2">Non-Smoking</span>
+                                <div class="room-title">Studio Double Queen Non-Smoking</div>
+                                <div class="features-list">
+                                    <span><i class="fa-solid fa-bed"></i> 2 Queen Beds</span><br>
+                                    <span><i class="fa-sharp fa-solid fa-people-group"></i> Accomodates 4 Guests</span><br>
+                                    <span><i class="fa-solid fa-toilet-paper"></i> Ensuite Bathroom</span><br>
+                                    <span><i class="fa-solid fa-utensils"></i> Kitchenette</span>
+                                </div>
+                                <div class="mt-2">
+                                    <a href="javascript:void(0)" class="view-amenities" onclick="openAmenitiesModal('modal-standard')">
+                                        Detailed Amenities <span class="icon solid fa-chevron-down"></span>
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="price">$99.99 <small class="fw-normal">/ night</small></div>
+                                <button class="book-btn" onclick="addToCart('Studio Double Queen Non-Smoking', 99.99)">Book</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="room-card" data-capacity="4" data-priority="7">
+                        <div class="room-image" style="background-image: url('/static/images/STU-QQ-NS.jpg'); background-position: 45% center;" onclick="openModal('/static/images/STU-QQ-NS.jpg')">
+                                <div class="expand-icon">
+                                <i class="fa-solid fa-magnifying-glass-plus"></i>
+                            </div>
+                        </div>
+                        <div class="room-details">
+                            <div>
+                                <span class="badge bg-light text-dark mb-2">Smoking Allowed</span>
+                                <div class="room-title">Studio Double Queen Smoking</div>
+                                <div class="features-list">
+                                    <span><i class="fa-solid fa-bed"></i> 2 Queen Beds</span><br>
+                                    <span><i class="fa-sharp fa-solid fa-people-group"></i> Accomodates 4 Guests</span><br>
+                                    <span><i class="fa-solid fa-toilet-paper"></i> Ensuite Bathroom</span><br>
+                                    <span><i class="fa-solid fa-utensils"></i> Kitchenette</span>
+                                </div>
+                                <div class="mt-2">
+                                    <a href="javascript:void(0)" class="view-amenities" onclick="openAmenitiesModal('modal-standard')">
+                                        Detailed Amenities <span class="icon solid fa-chevron-down"></span>
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="price">$99.99 <small class="fw-normal">/ night</small></div>
+                                <button class="book-btn" onclick="addToCart('Studio Double Queen Smoking', 99.99)">Book</button>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
+                <div id="imageModal" onclick="closeModal()">
+                    <div class="inline-wrapper" onclick="event.stopPropagation()"> 
+                        <img class="image-modal-img" id="expandedImg">
+                        <button class="close-image-btn" onclick="closeModal()" aria-label="Close image">
+                            &times;
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cart-column">
+                <div class="cart-card">
+                    <h4 class="mb-4">Your Reservations</h4>
+                    <div id="cart-empty" class="text-muted text-center py-4">No rooms selected yet.</div>
+                    <div id="cart-items"></div>
+                    
+                    <div class="mt-4 pt-3 border-top d-flex justify-content-between">
+                        <strong>Total</strong>
+                        <strong id="cart-total">$0.00</strong>
+                    </div>
+                    <button class="reserve-btn" onclick="location.href='/booker_contact'">RESERVE</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+        // Expanding Photos
+        function openModal(imgSrc) {
+            const modal = document.getElementById("imageModal");
+            const modalImg = document.getElementById("expandedImg");
+            
+            modalImg.src = imgSrc;
+            
+            modal.style.display = "flex"; 
+            modal.style.alignItems = "center";
+            modal.style.justifyContent = "center";
+            
+            // Using requestAnimationFrame or a tiny timeout ensures the transition triggers
+            setTimeout(() => {
+                modal.classList.add("show");
+            }, 10);
+        }
+
+        function closeModal() {
+            const modal = document.getElementById("imageModal");
+            modal.classList.remove("show");
+            setTimeout(() => {
+                modal.style.display = "none";
+            }, 300);
+        }
+
+        function startSearchWithLoader() {
+            const loader = document.getElementById('search-loader');
+
+            // 1. Show loader
+            loader.style.display = 'flex';
+
+            // 2. Lock scrolling
+            document.body.style.overflow = 'hidden';
+
+            // 3. Simulate backend delay (5 seconds)
+            setTimeout(() => {
+                performSearch(); // ← your existing logic
+                loader.style.display = 'none';
+                document.body.style.overflow = '';
+            }, 2000);
+        }
+
+        // --- 1. SEARCH LOGIC (THE HEART OF YOUR REQUEST) ---
+        function performSearch() {
+            const totalGuests = counts.adults + counts.children;
+            const rooms = document.querySelectorAll('.room-card');
+            const alertBox = document.getElementById('capacity-alert');
+            const alertText = document.getElementById('alert-text');
+            const roomsList = document.getElementById('rooms-list');
+            
+            // Logic for more than 4 people
+            if (totalGuests > 4) {
+                alertBox.style.display = 'flex';
+                alertText.innerText = `No rooms are available to accommodate ${totalGuests} guests.`;
+                rooms.forEach(r => r.style.display = 'none');
+                return;
+            }
+
+            alertBox.style.display = 'none';
+
+            // Convert NodeList to Array so we can sort them
+            let roomsArray = Array.from(rooms);
+
+            roomsArray.forEach(room => {
+                const capacity = parseInt(room.dataset.capacity);
+                
+                if (totalGuests <= 2) {
+                    // Display all, but sort priority in CSS/JS
+                    room.style.display = 'flex';
+                } else if (totalGuests === 3 || totalGuests === 4) {
+                    // Only display 4-person rooms
+                    room.style.display = (capacity === 4) ? 'flex' : 'none';
+                }
+            });
+
+            // Re-order based on your priority list
+            roomsArray.sort((a, b) => a.dataset.priority - b.dataset.priority);
+            roomsArray.forEach(room => roomsList.appendChild(room));
+        }
+
+        // --- 2. CART LOGIC ---
+        let cart = [];
+        
+        function addToCart(name, pricePerNight) {
+            // Calculate total price based on globalNights
+            const totalPrice = pricePerNight * globalNights;
+            
+            // Store the room name, the price for the stay, and the number of nights
+            cart.push({
+                name: name, 
+                price: totalPrice, 
+                nights: globalNights 
+            });
+            
+            // logic: Save the current cart to localStorage so booker_contact.html can read it
+            localStorage.setItem('bookingCart', JSON.stringify(cart));
+            localStorage.setItem('checkinDate', document.getElementById('checkin').value);
+            localStorage.setItem('checkoutDate', document.getElementById('checkout').value);
+            localStorage.setItem('guestSummary', document.getElementById('guest-summary').innerText);
+            
+            updateCartUI();
+            document.getElementById('cart-empty').style.display = 'none';
+        }
+
+        function removeFromCart(index) {
+            cart.splice(index, 1);
+            updateCartUI();
+            if(cart.length === 0) document.getElementById('cart-empty').style.display = 'block';
+        }
+
+        function updateCartUI() {
+            const container = document.getElementById('cart-items');
+            container.innerHTML = '';
+            let grandTotal = 0;
+            
+            cart.forEach((item, index) => {
+                grandTotal += item.price;
+                container.innerHTML += `
+                    <div class="cart-item d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong>${item.name}</strong><br>
+                            <small class="text-muted">${item.nights} Night stay</small>
+                        </div>
+                        <div class="text-end">
+                            $${item.price.toFixed(2)}<br>
+                            <button class="btn btn-link btn-sm text-danger p-0 border-0" onclick="removeFromCart(${index})">Remove</button>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('cart-total').innerText = `$${grandTotal.toFixed(2)}`;
+        }
+        
+
+        // --- 3. CALENDAR & GUEST HELPERS ---
+        const today = new Date();
+        const tomorrow = new Date(); tomorrow.setDate(today.getDate() + 1);
+        let globalNights = 1;
+        const checkinPicker = flatpickr("#checkin", { defaultDate: today, dateFormat: "j M Y", clickOpens: false });
+        const checkoutPicker = flatpickr("#checkout", { defaultDate: tomorrow, dateFormat: "j M Y", clickOpens: false });
+
+        // ADD THIS INSTEAD:
+        let modalCalendar = null; // Create a variable to hold the calendar later
+
+        function openCalendar() { 
+            const modal = document.getElementById('calendar-modal');
+            modal.style.display = 'flex'; 
+
+            // Logic: If the calendar doesn't exist yet, create it now that the modal is visible
+            if (!modalCalendar) {
+                modalCalendar = flatpickr("#inline-calendar", {
+                    mode: "range", 
+                    inline: true, 
+                    showMonths: 2, 
+                    minDate: "today", 
+                    defaultDate: [today, tomorrow],
+                    onChange: function(dates, dateStr, instance) {
+                        if(dates.length === 2) {
+                            checkinPicker.setDate(dates[0]);
+                            checkoutPicker.setDate(dates[1]);
+
+                            // CALCULATE NIGHTS: Subtract check-in from check-out and convert to days
+                            const diffInMs = dates[1].getTime() - dates[0].getTime();
+                            globalNights = Math.ceil(diffInMs / (1000 * 60 * 60 * 24));
+
+                            document.getElementById('selected-dates-info').innerText = `${globalNights} Night(s) Selected`;
+                        }
+                    }
+                });
+            } else {
+                // If it already exists, just refresh it
+                modalCalendar.redraw();
+            }
+        }
+        
+        // Fixed: Hides the modal
+        function closeCalendar() { 
+            document.getElementById('calendar-modal').style.display = 'none'; 
+        }
+
+        let counts = { adults: 2, children: 0, pets: 0 };
+        function togglePopup() { const p = document.getElementById('guest-popup'); p.style.display = (p.style.display==='block'?'none':'block'); }
+        function changeCount(type, delta) {
+            counts[type] = Math.max((type==='adults'?1:0), counts[type] + delta);
+            document.getElementById(type + '-count').innerText = counts[type];
+            function pluralize(count, singular, plural) {
+            return `${count} ${count === 1 ? singular : plural}`;
+            }
+            document.getElementById('guest-summary').innerText =
+            pluralize(counts.adults, 'Adult', 'Adults') +
+            (counts.children > 0 ? ', ' + pluralize(counts.children, 'Child', 'Children') : '') +
+            (counts.pets > 0 ? ', ' + pluralize(counts.pets, 'Pet', 'Pets') : '');
+        }
+
+        // Close guest popup on outside click
+        window.onclick = function(e) { if(!e.target.closest('.search-item')) document.getElementById('guest-popup').style.display = 'none'; }
+
+
+        // For the "Detailed Amenities" Pop-up
+        function openAmenitiesModal(contentId) {
+            var modal = document.getElementById("amenities-modal");
+            var body = document.getElementById("modal-body-content");
+            var sourceData = document.getElementById(contentId);
+            
+            if (modal && body && sourceData) {
+                body.innerHTML = sourceData.innerHTML; // Copies the hidden emoji grid into the popup
+                modal.style.display = "block";
+                document.body.style.overflow = "hidden"; // Prevents background scrolling
+            }
+        }
+
+        function closeAmenitiesModal() {
+            document.getElementById("amenities-modal").style.display = "none";
+            document.body.style.overflow = "auto";
+        }
+
+        // Close modal when clicking outside the box
+        window.onclick = function(event) {
+            var modal = document.getElementById("amenities-modal");
+            if (event.target == modal) {
+                closeAmenitiesModal();
+            }
+        }
+
+    </script>
+
+    <!-- Amenities Modal -->
+    <div id="amenities-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeAmenitiesModal()">&times;</span>
+            <h2>Detailed Amenities</h2>
+            <div id="modal-body-content">
+                </div>
+        </div>
+    </div>
+
+    <div id="modal-standard" style="display:none;">
+        <h3 class="amenity-category-title">Bedroom</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Wardrobes</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Alarm clock</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Bedside lamps</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Small couch</div>
+        </div>
+
+        <h3 class="amenity-category-title">Ensuite Bathroom</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Free toiletries</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Hairdryer</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Towels</div>
+        </div>
+
+        <h3 class="amenity-category-title">Living Area</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Flat-screen TV</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Telephone</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Work desk</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Ergonomic chair</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Hangers</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Tea/Coffee maker</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Garbage can</div>
+        </div>
+
+        <h3 class="amenity-category-title">General</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> High-speed Wi-Fi</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Air conditioning</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Heating</div>
+        </div>
+    </div>
+
+    <div id="modal-studio" style="display:none;">
+        <h3 class="amenity-category-title">Bedroom</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Wardrobes</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Alarm clock</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Bedside lamps</div>
+        </div>
+
+        <h3 class="amenity-category-title">Kitchenette</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Stove</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Sink</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Refrigerator</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Microwave</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Toaster</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Utensils set</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Plates/Bowls/Cups</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Pots/Pans</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Kitchen Towels</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Garbage Can</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Tea/Coffee Maker</div>
+        </div>
+
+        <h3 class="amenity-category-title">Ensuite Bathroom</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Free toiletries</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Hairdryer</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Towels</div>
+        </div>
+
+        <h3 class="amenity-category-title">Living Area</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Flat-screen TV</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Telephone</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Work desk</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Ergonomic chair</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Hangers</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Full length mirror</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Couch (Studio Queen only)</div>
+        </div>
+
+        <h3 class="amenity-category-title">Dining Area</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Table</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Stool</div>
+        </div>
+
+        <h3 class="amenity-category-title">General</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> High-speed Wi-Fi</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Air conditioning</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Heating</div>
+        </div>
+    </div>
+
+    <div id="modal-suite" style="display:none;">
+        <h3 class="amenity-category-title">Bedroom</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Wardrobes</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Alarm clock</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Bedside lamps</div>
+        </div>
+
+        <h3 class="amenity-category-title">Kitchenette</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Stove</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Sink</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Refrigerator</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Microwave</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Toaster</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Utensils set</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Plates/Bowls/Cups</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Pots/Pans</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Kitchen Towels</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Garbage Can</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Tea/Coffee Maker</div>
+        </div>
+
+        <h3 class="amenity-category-title">Ensuite Bathroom</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Free toiletries</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Hairdryer</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Towels</div>
+        </div>
+
+        <h3 class="amenity-category-title">Living Area</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Flat-screen TV</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Telephone</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Work desk</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Ergonomic chair</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Hangers</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Full length mirror</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Couch</div>
+        </div>
+
+        <h3 class="amenity-category-title">Dining Area</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Table</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Stools (Suite Queen only)</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Chairs (Suite King only)</div>
+        </div>
+
+        <h3 class="amenity-category-title">General</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> High-speed Wi-Fi</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Air conditioning</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Heating</div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer id="footer">
+        <div class="container">
+            <header class="minor">
+                <h4>Listed On</h4>
+            </header>
+            <div class="partner-grid">
+                <div class="partner-logo"><img src="/static/images/partners/booking_com.svg.png" alt="Booking.com"></div>
+                <div class="partner-logo"><img src="/static/images/partners/expedia.svg" alt="Expedia"></div>
+                <div class="partner-logo"><img src="/static/images/partners/tripadvisor.png" alt="TripAdvisor"></div>
+                <div class="partner-logo"><img src="/static/images/partners/kayak.png" alt="KAYAK"></div>
+                <div class="partner-logo"><img src="/static/images/partners/agoda.svg.png" alt="Agoda"></div>
+                <div class="partner-logo"><img src="/static/images/partners/hotels_com.png" alt="Hotels.com"></div>
+                <div class="partner-logo"><img src="/static/images/partners/holidaycheck.svg.png" alt="HolidayCheck"></div>
+                <div class="partner-logo"><img src="/static/images/partners/lodgingworld.png" alt="lodgingworld"></div>
+                <div class="partner-logo"><img src="/static/images/partners/hotelni_com.png" alt="hotelni.com"></div>
+                <div class="partner-logo"><img src="/static/images/partners/trivago.svg.png" alt="Trivago"></div>
+                <div class="partner-logo"><img src="/static/images/partners/gother.png" alt="Gother"></div>
+                <div class="partner-logo"><img src="/static/images/partners/skyscanner.svg.png" alt="Skyscanner"></div>
+                <div class="partner-logo"><img src="/static/images/partners/wanderlog.png" alt="Wanderlog"></div>
+                <div class="partner-logo"><img src="/static/images/partners/mapquest.png" alt="MapQuest"></div>
+                <div class="partner-logo"><img src="/static/images/partners/travelalberta.png" alt="Travel Alberta"></div>
+                <div class="partner-logo"><img src="/static/images/partners/albertahotels.png" alt="Alberta Hotels"></div>
+            </div>
+        </div>
+        <ul class="copyright">
+            <li>&copy; Untitled. All rights reserved.</li><li>Design: <a href="http://html5up.net">HTML5 UP</a></li>
+        </ul>
+    </footer>
+
+</body>
+</html>
+
+
+<!-- 
+<!DOCTYPE HTML>
+<html>
+<head>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/airbnb.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <title>Available Options - Grande Mountain Lodge</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="/static/assets/css/main.css" />
+    <style>
+        .fa-solid, .fas {
+            font-weight: 900 !important;
+        }
+        
+        /* --- Header Search Bar Area --- */
+        .search-summary {
+            display: flex;
+            align-items: center;
+            background: white;
+            border-radius: 30px;
+            padding: 10px 20px;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            max-width: 1000px; /* Slightly wider to accommodate full dates */
+            margin: 0 auto 40px auto;
+            position: relative;
+        }
+
+        #guest-summary {
+            font-size: 1.0rem;
+            font-weight: 500;
+            color: #333;
+            white-space: nowrap; /* This prevents the text from wrapping */
+            overflow: hidden;    /* Safety: hide text if it's truly too long */
+            text-overflow: ellipsis; /* Adds "..." if it absolutely cannot fit */
+        }
+
+        .input-stack {
+            align-items: left;
+            text-align: left;
+        }
+
+        .input-stack label {
+            display: block;
+            font-size: 0.7rem !important;
+            color: #000;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: -2px !important;
+        }
+
+        .nav-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        /* --- Search Button --- */
+        .search-btn-minimal {
+            background: #000;
+            color: #fff;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: background 0.3s ease; /* Smooth transition */
+            margin-left: auto; /* Pushes button to the far right */
+        }
+
+        .search-btn-minimal:hover {
+            background: #444; /* Changes to dark grey on hover */
+        }
+        
+        .icon-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #000;
+        }
+
+        .search-divider-slim {
+            width: 1px;
+            height: 60px;
+            background: #ddd;
+            margin: 0 15px;
+        }
+
+        /* Customizing the Flatpickr Calendar to look like Hollywood Hotel */
+        .flatpickr-calendar {
+            box-shadow: 0 15px 50px rgba(0,0,0,0.15) !important;
+            border: none !important;
+            border-radius: 10px !important;
+            padding: 1px;
+        }
+
+        /* --- Modern Modal Overlay --- */
+        .calendar-overlay {
+            display: none;
+            position: fixed;
+            z-index: 3000;
+            left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.45); /* Exact grey film opacity */
+            justify-content: center;
+            align-items: center;
+        }
+
+        .calendar-popup-content {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            width: auto; /* Let Flatpickr determine width for 2 months */
+            min-width: 700px;
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+
+        /* --- Flatpickr Layout Overrides --- */
+        .flatpickr-calendar.inline {
+            box-shadow: none !important;
+            border: none !important;
+            background: transparent !important;
+        }
+
+        /* Day Styling: No Bold, Square-ish look */
+        .flatpickr-day {
+            font-weight: 400 !important;
+            color: #333;
+            border-radius: 4px !important; /* Matches the slight curve in your example */
+            height: 38px;
+            line-height: 38px;
+        }
+
+        /* Selection: Strict Black and White */
+        .flatpickr-day.selected, 
+        .flatpickr-day.startRange, 
+        .flatpickr-day.endRange,
+        .flatpickr-day.selected:hover,
+        .flatpickr-day.startRange:hover,
+        .flatpickr-day.endRange:hover {
+            background: #000 !important;
+            color: #fff !important;
+            border-color: #000 !important;
+        }
+
+        /* Range: Soft Grey Background */
+        .flatpickr-day.inRange {
+            background: #f2f2f2 !important;
+            box-shadow: -5px 0 0 #f2f2f2, 5px 0 0 #f2f2f2 !important;
+            border-color: transparent !important;
+        }
+
+        /* Month/Weekday Labels: Adjusted for Year visibility */
+        .flatpickr-months .flatpickr-month { 
+            color: #000 !important; 
+            fill: #000 !important; 
+            height: 70px !important; /* Increased height so year isn't cut off */
+        }
+
+        .flatpickr-current-month { 
+            font-size: 1rem !important; 
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            gap: 6px; /* Space between Month and Year */
+            height: 100% !important;
+        }
+
+        .flatpickr-weekday { 
+            color: #999 !important; 
+            font-size: 0.75rem !important; 
+            text-transform: uppercase;
+            font-weight: 400 !important;
+        }
+
+        /* Arrows: Aligned with the new height */
+        .flatpickr-prev-month, .flatpickr-next-month {
+            color: #000 !important; 
+            fill: #000 !important; 
+            padding: 15px !important;
+            top: 5px !important;
+        }
+
+        /* Ensure year is visible and unbolded */
+        .cur-year {
+            font-weight: 400 !important;
+            color: #000 !important;
+        }
+
+        .flatpickr-prev-month:hover svg, .flatpickr-next-month:hover svg {
+            fill: #000 !important;
+        }
+
+        /* --- 1. General Reset & Typography (Hollywood Hotel Aesthetic) --- */
+        body { background: #f8f7f5; color: #333; font-family: 'Inter', sans-serif; }
+        #page-wrapper { background: #f8f7f5; }
+        /* This rule unbolds everything and keeps text light and professional */
+        * { font-weight: 400 !important;}
+        /* --- New Layout Alignment --- */
+        .site-logo {
+            height: 50px; /* Reduced size for elegance */
+            width: auto;
+        }
+
+        .icon-small {
+            font-size: 1.1rem;
+            color: #444;
+        }
+
+        .arrow-sep {
+            margin: 0 10px;
+            color: #ccc;
+            font-weight: 300;
+        }
+
+        /* --- Header & Logo Styles --- */
+        .main-header {
+            width: 100%;
+            padding: 20px 40px; /* Provides breathing room from the edges */
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            background: transparent; /* Keeps the background clean */
+        }
+
+        .site-logo {
+            height: 60px; /* Adjust this height based on your logo's proportions */
+            width: auto;
+            object-fit: contain;
+            transition: transform 0.3s ease;
+        }
+
+        .site-logo:hover {
+            transform: scale(1.05); /* Subtle interaction when hovering over logo */
+        }
+
+        /* Adjust the booking container margin if the logo pushes content down too much */
+        .booking-container {
+            padding-top: 10px !important;
+        }
+        /* This overrides your dark theme to create the bright Hollywood Hotel look */
+        body { background: #f8f7f5; color: #333; }
+        #page-wrapper { background: #f8f7f5; }
+        .booking-container { max-width: 1000px; margin: 0 auto; padding: 40px 20px; }
+        
+        .checkin-section, .checkout-section {
+            width: 180px; /* Fixed width for date sections */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .search-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex: 1;
+        }
+
+        .search-item label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: #000; 
+            margin-bottom: 2px;
+            text-transform: uppercase;
+        }
+
+        .search-item input, .search-item select {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #000; 
+            border: none;
+            background: transparent;
+            cursor: pointer;
+        }
+
+        /* --- New Guest Selection Popup Styles --- */
+        .guest-popup {
+            display: none; 
+            position: absolute;
+            top: 70px;
+            left: 20px;
+            background: white;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            border-radius: 15px;
+            padding: 25px;
+            width: 320px;
+            z-index: 1000;
+            border: 1px solid #eee;
+        }
+
+        .guest-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .guest-label {
+            font-size: 0.95rem;
+            font-weight: bold;
+            color: #000;
+        }
+
+        .guest-sub {
+            font-size: 0.75rem;
+            color: #888;
+        }
+
+        .counter-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .counter-btn {
+            border: 1px solid #ddd;
+            background: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            font-weight: normal;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .counter-btn:hover { background: #f5f5f5; }
+
+        .counter-value {
+            font-weight: bold;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        /* Room Card Design */
+        .room-card { 
+            background: white; border-radius: 15px; overflow: hidden; 
+            display: flex; margin-bottom: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            transition: transform 0.2s;
+            height: 300px; /* FIXED HEIGHT TO KEEP TEXT VISIBLE */
+        }
+        .room-card:hover { transform: translateY(-5px); }
+        
+        .room-image { 
+            width: 45%; 
+            height: 100%; 
+            background-size: cover; 
+            background-position: center; 
+            position: relative; 
+            cursor: pointer;
+        }
+
+        /* ICON IN BOTTOM RIGHT OF IMAGE */
+        .expand-icon {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.2s ease, background 0.3s ease; /* Smooth hover transition */
+            cursor: pointer;
+            z-index: 10;
+        }
+        
+        .room-image:hover .expand-icon {
+            transform: scale(1.2); /* Icon expands slightly on hover */
+            background: rgba(0, 0, 0, 0.8);
+        }
+
+        .room-details { width: 55%; padding: 30px; display: flex; flex-direction: column; justify-content: space-between; }
+        
+        .room-title { font-size: 1.5rem; font-weight: 600; margin-bottom: 10px; color: #111; }
+        .features-list { display: flex; flex-wrap: wrap; gap: 10px; font-size: 0.85rem; color: #666; margin-bottom: 20px; }
+        .price-area { border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; padding-top: 20px;}
+        .price { font-size: 1.4rem; font-weight: bold; color: #111; }
+        .book-btn { background: #000 !important; color: #fff !important; border-radius: 8px !important; padding: 10px 30px !important; }
+        
+        /* --- Modal Styles --- */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 2000; 
+            left: 0; top: 0; 
+            width: 100%; height: 100%; 
+            background-color: rgba(0, 0, 0, 0.6); /* Grey translucent film */
+            backdrop-filter: blur(3px); /* Optional: adds a slight professional blur to the background */
+            justify-content: center; 
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s ease; /* Smooth fade in for the background */
+        }
+
+        .modal.show {
+            display: flex;
+            opacity: 1;
+        }
+
+        /* --- Smooth Image Transition (No Border) --- */
+        .modal-content { 
+            max-width: 60%; /* Fills roughly half the screen width */
+            max-height: 80vh; 
+            border-radius: 12px;
+            background: transparent; /* Removes white background behind image */ 
+            padding: 0; /* Removes inner white frame */
+            border: none; /* Removes the white border */
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            transform: scale(0.8); /* Starts slightly smaller */
+            transition: transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1); /* Smooth "spring" expansion */
+            display: block; /* Prevents inline spacing issues */
+        }
+
+        .modal.show .modal-content {
+            transform: scale(1); /* Expands to full size */
+        }
+
+        .close-btn { 
+            position: absolute; 
+            top: 30px; 
+            right: 40px; 
+            color: #fff; 
+            font-size: 35px; 
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .close-btn:hover { opacity: 0.7; }
+            
+        .text-minimal {
+            /* 1. Removes the lines */
+            border: none !important;
+            outline: none !important;
+
+            /* 2. Removes the color fill */
+            background: transparent !important;
+            background-color: transparent !important;
+
+            /* 3. Removes shadows and 3D effects */
+            box-shadow: none !important;
+            -webkit-appearance: none !important; /* Fix for Safari/Chrome */
+            -moz-appearance: none !important;    /* Fix for Firefox */
+            appearance: none !important;
+
+            /* 4. Sizing */
+            padding: 0 !important;
+            margin: 0 !important;
+            height: auto !important;
+            width: 100% !important; /* Or a specific width like 120px */
+        }
+
+        .search-item input {
+            border: none !important;
+            background: transparent !important;
+        }
+
+        /* Removes the box from Flatpickr's generated input fields */
+        .flatpickr-input[readonly] + input.form-control,
+        .flatpickr-input + input {
+            border: none !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            outline: none !important;
+            padding: 0 !important;
+        }
+
+        /* Ensure the wrapper doesn't have a border */
+        .search-item input.text-minimal {
+            border: none !important;
+            background: transparent !important;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="booking-container">
+        <form action="/confirm-booking" method="POST">
+            <input type="hidden" name="adult_count" id="hidden-adults" value="2">
+            <input type="hidden" name="child_count" id="hidden-children" value="0">
+            <input type="hidden" name="pet_count" id="hidden-pets" value="0">
+        
+            <header id="header">
+                <h1 id="logo">
+                    <a href="/">
+                        <img src="/static/images/GML_Logo_white.png" alt="Grande Mountain Lodge" class="header-logo">
+                    </a>
+                </h1>
+                <nav id="nav">
+                    <ul>
+                        <li><a href="/" class="white">Home</a></li>
+                        <li><a href="/rooms" class="white">Rooms</a></li>
+                        <li><a href="/travel-guide" class="white">Travel Guide</a></li>
+                        <li><a href="/contact" class="white">Contact</a></li>
+                        <li><a href="/booking" class="button primary">BOOK NOW</a></li>
+                    </ul>
+                </nav>
+            </header>
+            <br><br>
+            <header class="nav-header container-fluid px-5">
+                <div class="search-summary">
+                    <div class="search-item" onclick="togglePopup()" style="cursor:pointer; position: relative; flex: 1.2;">
+                        <i class="fa-solid fa-user-group"></i>
+                        <div class="input-stack">
+                            <label>Booking Details</label>
+                            <div id="guest-summary" class="text-minimal">2 Adults</div>
+                        </div>
+                        <div id="guest-popup" class="guest-popup" onclick="event.stopPropagation()">
+                            <div class="guest-row">
+                                <div><div class="guest-label">Adults</div><div class="guest-sub">Ages 18 and above</div></div>
+                                <div class="counter-group">
+                                    <button type="button" class="counter-btn" onclick="changeCount('adults', -1)">-</button>
+                                    <span id="adults-count" class="counter-value">2</span>
+                                    <button type="button" class="counter-btn" onclick="changeCount('adults', 1)">+</button>
+                                </div>
+                            </div>
+                            <div class="guest-row">
+                                <div><div class="guest-label">Children</div><div class="guest-sub">Ages 0 - 17</div></div>
+                                <div class="counter-group">
+                                    <button type="button" class="counter-btn" onclick="changeCount('children', -1)">-</button>
+                                    <span id="children-count" class="counter-value">0</span>
+                                    <button type="button" class="counter-btn" onclick="changeCount('children', 1)">+</button>
+                                </div>
+                            </div>
+                            <div class="guest-row">
+                                <div><div class="guest-label">Pets</div><div class="guest-sub">Pets are welcome!</div></div>
+                                <div class="counter-group">
+                                    <button type="button" class="counter-btn" onclick="changeCount('pets', -1)">-</button>
+                                    <span id="pets-count" class="counter-value">0</span>
+                                    <button type="button" class="counter-btn" onclick="changeCount('pets', 1)">+</button>
+                                </div>
+                            </div>
+                            <button type="button" class="search-btn-minimal" style="width:100%; justify-content:center; margin-top:10px;" onclick="togglePopup()">Apply</button>
+                        </div>
+                    </div>
+
+                    <div class="search-divider-slim"></div>
+
+                    <div class="search-item checkin-section" onclick="openCalendar()" style="cursor:pointer;">
+                        <i class="fa-solid fa-calendar"></i>
+                        <div class="input-stack">
+                            <label>Check in</label>
+                            <input type="text" id="checkin" name="start_date" class="text-minimal" readonly>
+                        </div>
+                    </div>
+                    
+                    <div class="arrow-minimal" style="color: #ccc; margin: 0 10px;">→</div>
+
+                    <div class="search-item checkout-section" onclick="openCalendar()">
+                        <div class="input-stack">
+                            <label>Check out</label>
+                            <input type="text" id="checkout" name="end_date" class="text-minimal" readonly>
+                        </div>
+                    </div>
+
+                    <div class="search-divider-slim" style="margin-right: 20px;"></div>
+
+                    <button type="submit" class="search-btn-minimal">Search</button>
+                </div>
+            </header>
+            
+            <h2 style="margin-bottom: 30px;">Available Options</h2>
+            
+            <div class="room-card">
+                <div class="room-image" style="background-image: url('/static/images/STD-Q-NS.jpg'); background-position: 65% center;" onclick="openModal('/static/images/STD-Q-NS.jpg')">
+                    <div class="expand-icon">
+                        <i class="fas fa-search-plus"></i>
+                    </div>
+                </div>
+                <div class="room-details">
+                    <div>
+                        <span class="tag">Non-Smoking</span>
+                        <div class="room-title">Standard Queen Non-Smoking</div>
+                        <div class="features-list">
+                            <span>🛏️ 1 Queen Bed</span>
+                            <span>👥 2 Adults</span>
+                            <span>🚿 Ensuite Bathroom</span>
+                        </div>
+                    </div>
+                    <div class="price-area">
+                        <div class="price">$84.99 <small>/ night</small></div>
+                        <button type="submit" name="room_selection" value="Standard Queen Non-Smoking" class="book-btn">Book</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="room-card">
+                <div class="room-image" style="background-image: url('/static/images/STU-Q-NS.JPG'); background-position: 45% center;" onclick="openModal('/static/images/STU-Q-NS.JPG')">
+                    <div class="expand-icon">
+                        <i class="fas fa-search-plus"></i>
+                    </div>
+                </div>
+                <div class="room-details">
+                    <div>
+                        <span class="tag">Non-Smoking</span>
+                        <div class="room-title">Studio Queen Non-Smoking</div>
+                        <div class="features-list">
+                            <span>🛏️ 1 Queen Bed</span>
+                            <span>👥 2 Adults</span>
+                            <span>🚿 Ensuite Bathroom</span>
+                            <span>🚿 Kitchenette</span>
+                        </div>
+                    </div>
+                    <div class="price-area">
+                        <div class="price">$89.99 <small>/ night</small></div>
+                        <button type="submit" name="room_selection" value="Studio Queen Non-Smoking" class="book-btn">Book</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="room-card">
+                <div class="room-image" style="background-image: url('/static/images/STU-Q-NS.JPG');" onclick="openModal('/static/images/STU-Q-NS.JPG')">
+                    <div class="expand-icon">
+                        <i class="fas fa-search-plus"></i>
+                    </div>
+                </div>
+                <div class="room-details">
+                    <div>
+                        <span class="tag">Smoking Allowed</span>
+                        <div class="room-title">Studio Queen Smoking</div>
+                        <div class="features-list">
+                            <span>🛏️ 1 Queen Bed</span>
+                            <span>👥 2 Adults</span>
+                            <span>🚿 Ensuite Bathroom</span>
+                            <span>🚿 Kitchenette</span>
+                        </div>
+                    </div>
+                    <div class="price-area">
+                        <div class="price">$89.99 <small>/ night</small></div>
+                        <button type="submit" name="room_selection" value="Studio Queen Smoking" class="book-btn">Book</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="room-card">
+                <div class="room-image" style="background-image: url('/static/images/STU-QQ-NS.jpg');" onclick="openModal('/static/images/STU-QQ-NS.jpg')">
+                    <div class="expand-icon">
+                        <i class="fas fa-search-plus"></i>
+                    </div>
+                </div>
+                <div class="room-details">
+                    <div>
+                        <span class="tag">Non-Smoking</span>
+                        <div class="room-title">Studio Double Queen Non-Smoking</div>
+                        <div class="features-list">
+                            <span>🛏️ 1 Queen Bed</span>
+                            <span>👥 2 Adults</span>
+                            <span>🚿 Ensuite Bathroom</span>
+                            <span>🚿 Kitchenette</span>
+                        </div>
+                    </div>
+                    <div class="price-area">
+                        <div class="price">$99.99 <small>/ night</small></div>
+                        <button type="submit" name="room_selection" value="Studio Double Queen Non-Smoking" class="book-btn">Book</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="room-card">
+                <div class="room-image" style="background-image: url('/static/images/STU-QQ-NS.jpg');" onclick="openModal('/static/images/STU-QQ-NS.jpg')">
+                    <div class="expand-icon">
+                        <i class="fas fa-search-plus"></i>
+                    </div>
+                </div>
+                <div class="room-details">
+                    <div>
+                        <span class="tag">Smoking Allowed</span>
+                        <div class="room-title">Studio Double Queen Smoking</div>
+                        <div class="features-list">
+                            <span>🛏️ 1 Queen Bed</span>
+                            <span>👥 2 Adults</span>
+                            <span>🚿 Ensuite Bathroom</span>
+                            <span>🚿 Kitchenette</span>
+                        </div>
+                    </div>
+                    <div class="price-area">
+                        <div class="price">$99.99 <small>/ night</small></div>
+                        <button type="submit" name="room_selection" value="Studio Double Queen Smoking" class="book-btn">Book</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="room-card">
+                <div class="room-image" style="background-image: url('/static/images/STE-Q-NS.JPG'); background-position: 100% center;" onclick="openModal('/static/images/STE-Q-NS.JPG')">
+                    <div class="expand-icon">
+                        <i class="fas fa-search-plus"></i>
+                    </div>
+                </div>
+                <div class="room-details">
+                    <div>
+                        <span class="tag">Non-Smoking</span>
+                        <div class="room-title">Suite Queen Non-Smoking</div>
+                        <div class="features-list">
+                            <span>🛏️ 1 Queen Bed in separate bedroom</span>
+                            <span>👥 2 Adults</span>
+                            <span>🚿 Ensuite Bathroom</span>
+                            <span>🚿 Kitchenette</span>
+                            <span>🚿 Living Room</span>
+                        </div>
+                    </div>
+                    <div class="price-area">
+                        <div class="price">$104.99 <small>/ night</small></div>
+                        <button type="submit" name="room_selection" value="Suite Queen Non-Smoking" class="book-btn">Book</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="room-card">
+                <div class="room-image" style="background-image: url('/static/images/STE-K-NS.JPG'); background-position: 60% center;" onclick="openModal('/static/images/STE-K-NS.JPG')">
+                    <div class="expand-icon">
+                        <i class="fas fa-search-plus"></i>
+                    </div>
+                </div>
+                <div class="room-details">
+                    <div>
+                        <span class="tag">Non-Smoking</span>
+                        <div class="room-title">Suite King Non-Smoking</div>
+                        <div class="features-list">
+                            <span>🛏️ 1 King Bed</span>
+                            <span>👥 2 Adults</span>
+                            <span>🚿 Ensuite Bathroom</span>
+                            <span>🚿 Kitchenette</span>
+                            <span>🚿 Dining Room with 4 chairs</span>
+                        </div>
+                    </div>
+                    <div class="price-area">
+                        <div class="price">$104.99 <small>/ night</small></div>
+                        <button type="submit" name="room_selection" value="Suite King Non-Smoking" class="book-btn">Book</button>
+                    </div>
+                </div>
+            </div>
+        <div id="imageModal" class="modal" onclick="closeModal()">
+            <span class="close-btn">&times;</span>
+            <img class="modal-content" id="expandedImg">
+        </div>
+        <div id="calendar-modal" class="calendar-overlay" onclick="closeCalendar()">
+            <div class="calendar-modal-content" onclick="event.stopPropagation()">
+                <span class="calendar-close" onclick="closeCalendar()">&times;</span>
+                <div id="inline-calendar"></div>
+                
+                <div class="calendar-footer">
+                    <div id="selected-dates-info" class="selected-info">Select your arrival and departure dates</div>
+                    <button type="button" class="apply-btn" onclick="closeCalendar()">Apply Dates</button>
+                </div>
+            </div>
+        </div>
+        </form> </div>
+
+    <script>
+        // 1. Define the default dates
+        const today = new Date();
+        const tomorrow = new Date();
+        tomorrow.setDate(today.getDate() + 1);
+
+        // 2. Initialize the main Range Calendar (Modal)
+        const lodgeCalendar = flatpickr("#inline-calendar", {
+            mode: "range",
+            showMonths: 2,
+            inline: true,
+            minDate: "today",
+            defaultDate: [today, tomorrow],
+            dateFormat: "Y-m-d",
+            onChange: function(selectedDates, dateStr, instance) {
+                if (selectedDates.length === 2) {
+                    // Update the hidden/display fields
+                    checkinPicker.setDate(selectedDates[0]);
+                    checkoutPicker.setDate(selectedDates[1]);
+                    
+                    // Update text display
+                    document.getElementById('checkin').value = instance.formatDate(selectedDates[0], "j M Y");
+                    document.getElementById('checkout').value = instance.formatDate(selectedDates[1], "j M Y");
+                    
+                    const diff = Math.ceil((selectedDates[1] - selectedDates[0]) / (1000 * 60 * 60 * 24));
+                    document.getElementById('selected-dates-info').innerText = 
+                        `${diff} nights: ${instance.formatDate(selectedDates[0], "M j")} - ${instance.formatDate(selectedDates[1], "M j")}`;
+                }
+            }
+        });
+
+        // 3. Initialize the Check-in field
+        const checkinPicker = flatpickr("#checkin", {
+            altInput: true,
+            altFormat: "j M Y",
+            dateFormat: "Y-m-d",
+            defaultDate: today,
+            minDate: "today",
+            onOpen: function() { document.body.classList.add("modal-open"); },
+            onClose: function() { document.body.classList.remove("modal-open"); },
+            onChange: function(selectedDates, dateStr) {
+                // Logic Fix: Set minDate of Check-out to Check-in + 1 day
+                const nextDay = new Date(selectedDates[0]);
+                nextDay.setDate(nextDay.getDate() + 1);
+                checkoutPicker.set("minDate", nextDay);
+                
+                // If current Check-out is now before the new minDate, move it forward
+                if (checkoutPicker.selectedDates[0] <= selectedDates[0]) {
+                    checkoutPicker.setDate(nextDay);
+                }
+            }
+        });
+
+        // 4. Initialize the Check-out field
+        const checkoutPicker = flatpickr("#checkout", {
+            altInput: true,
+            altFormat: "j M Y",
+            dateFormat: "Y-m-d",
+            defaultDate: tomorrow,
+            minDate: tomorrow, // Initially set to tomorrow
+            onOpen: function() { document.body.classList.add("modal-open"); },
+            onClose: function() { document.body.classList.remove("modal-open"); }
+        });
+
+        // 5. Update footer text for initial load
+        document.getElementById('selected-dates-info').innerText = 
+            `1 night: ${today.toLocaleString('default', { month: 'short' })} ${today.getDate()} - ${tomorrow.toLocaleString('default', { month: 'short' })} ${tomorrow.getDate()}`;
+        
+        // --- Guest & Modal Functions --- (Kept exactly as per your nice styling)
+        let counts = { adults: 2, children: 0, pets: 0 };
+        
+        function openModal(imgSrc) {
+            const modal = document.getElementById("imageModal");
+            const modalImg = document.getElementById("expandedImg");
+            modalImg.src = imgSrc;
+            modal.style.display = "flex";
+            setTimeout(() => { modal.classList.add("show"); }, 10);
+        }
+
+        function closeModal() {
+            const modal = document.getElementById("imageModal");
+            modal.classList.remove("show");
+            setTimeout(() => { modal.style.display = "none"; }, 300);
+        }
+
+        function togglePopup() {
+            let popup = document.getElementById('guest-popup');
+            popup.style.display = (popup.style.display === 'block') ? 'none' : 'block';
+        }
+
+        function changeCount(type, delta) {
+            let min = (type === 'adults') ? 1 : 0;
+            counts[type] = Math.max(min, counts[type] + delta);
+            document.getElementById(type + '-count').innerText = counts[type];
+            document.getElementById('hidden-' + type).value = counts[type];
+            let summary = `${counts['adults']} ${counts['adults'] === 1 ? 'Adult' : 'Adults'}`;
+            if (counts['children'] > 0) summary += `, ${counts['children']} ${counts['children'] === 1 ? 'Child' : 'Children'}`;
+            if (counts['pets'] > 0) summary += `, ${counts['pets']} ${counts['pets'] === 1 ? 'Pet' : 'Pets'}`;
+            document.getElementById('guest-summary').innerText = summary;
+        }
+
+        window.onclick = function(event) {
+            if (!event.target.closest('.search-item')) {
+                document.getElementById('guest-popup').style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
+</body>
+</html>
+-->

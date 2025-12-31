@@ -1,0 +1,601 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@25.1.0/build/css/intlTelInput.css">
+    <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@25.1.0/build/js/intlTelInput.min.js"></script>
+    <title>Your Details - Grande Mountain Lodge</title>
+    <style>
+        body { 
+            background-color: #f5f5f5; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+        }
+
+        /* --- Payment Section Styling --- */
+        .card-icons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .card-icons img {
+            height: 24px;
+            width: auto;
+            filter: grayscale(20%);
+            opacity: 0.9;
+        }
+        .expiry-cvv-row {
+            display: flex;
+            gap: 15px;
+        }
+        .expiry-cvv-row > div {
+            flex: 1;
+        }
+
+        /* Help icon for CVV */
+        .cvv-help {
+            cursor: help;
+            color: #333;
+            font-size: 1.1rem;
+            margin-left: 5px;
+        }
+
+        /* Validation Icon specifically for inputs */
+        .input-wrapper .error-icon {
+            right: 10px;
+            font-size: 18px;
+        }
+        /* --- Validation Styling --- */
+        .input-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        /* Red border when invalid */
+        .is-invalid {
+            border-color: #d4111e !important;
+            background-color: #fff !important;
+        }
+
+        /* Error text styling */
+        .error-message {
+            color: #d4111e;
+            font-size: 13px;
+            margin-top: 4px;
+            display: none; /* Hidden by default */
+        }
+
+        /* Alert Icon on the right */
+        .error-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #d4111e;
+            display: none; /* Hidden by default */
+            pointer-events: none;
+        }
+
+        /* Special fix for intl-tel-input overlap */
+        .iti.is-invalid + .error-message {
+            display: block;
+        }
+
+        /* --- Global Library Fixes --- */
+        .iti { width: 100%; }
+        
+        /* Ensure the country list is wide and matches your input's style */
+        .iti__country-list {
+            width: 100% !important; /* Forces dropdown to match input width */
+            left: 0 !important;
+            right: 0 !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+            max-width: none !important; /* Removes the 400px limit that caused the 'half-box' look */
+            border-radius: 4px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important;
+            border: 1px solid #ddd !important;
+        }
+        
+        /* Logic: Ensure the search input inside the dropdown also looks correct */
+        .iti__search-input {
+            width: 100% !important;
+            border: none !important;
+            border-bottom: 1px solid #eee !important;
+            padding: 10px !important;
+            outline: none !important;
+        }
+
+        .custom-input-style {
+            border: 1px solid #868686 !important;
+            border-radius: 4px !important;
+            padding: 10px 12px !important;
+            width: 100% !important;
+        }
+
+        /* Hide the arrow if you want a cleaner look, or style it to match the video */
+        .iti__arrow {
+            margin-left: auto; /* Pushes the arrow to the far right */
+        }
+
+        /* Fix for Country Select overlap and clickability */
+        #country-select {
+            padding-left: 50px !important;
+            font-weight: 500;
+            color: #333;
+        }
+
+        /* Make the flag container cover the whole input area so the whole box is clickable */
+        .iti--allow-dropdown #country-select {
+            pointer-events: none; /* Let clicks pass through to the ITI container */
+        }
+        .iti--allow-dropdown {
+            pointer-events: auto;
+            cursor: pointer;
+        }
+
+        /* Make the flag container invisible but full width so clicking anywhere opens the list */
+        .country-only-dropdown .iti__selected-flag {
+            width: 100%;
+            background: transparent !important;
+        }
+
+        /* --- UI Elements --- */
+        .card { 
+            border-radius: 8px; 
+            border: 1px solid #e6e6e6; 
+            margin-bottom: 16px; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05); 
+            background: white;
+        }
+
+        label { font-weight: 600; font-size: 14px; margin-top: 15px; display: block; }
+
+        input, textarea { 
+            border: 1px solid #868686; 
+            border-radius: 4px; 
+            padding: 8px; 
+            width: 100%; 
+        }
+
+        .info-box { 
+            background: #f0f6ff; 
+            border: 1px solid #006ce4; 
+            padding: 12px; 
+            border-radius: 4px; 
+            display: flex; 
+            align-items: center; 
+        }
+
+        .btn-next { 
+            background: #006ce4; 
+            color: white; 
+            padding: 12px 30px; 
+            border-radius: 4px; 
+            border: none; 
+            font-weight: bold; 
+            width: 100%; 
+            transition: background 0.2s;
+        }
+
+        /* --- Stepper Navigation --- */
+        .stepper-bar { background: white; padding: 20px 0; border-bottom: 1px solid #e6e6e6; margin-bottom: 30px; }
+        .stepper-container { max-width: 900px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
+        .step-item { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 700; white-space: nowrap; color: #333; }
+        .step-line { flex-grow: 1; height: 1px; background-color: #868686; margin: 0 15px; }
+        .step-number { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 1px solid #868686; color: #868686; }
+        .step-active .step-number { background-color: #006ce4; border-color: #006ce4; color: white; }
+        .step-active .step-icon { color: #006ce4; font-size: 24px; }
+        .step-active { color: #006ce4; }
+        .text-muted { color: #868686 !important; }
+
+        /* --- Drawers --- */
+        .clickable-trigger { cursor: pointer; text-decoration: none; }
+        .clickable-trigger:hover { color: #006ce4; }
+        .breakdown-drawer { display: none; background: #fdfdfd; padding: 8px 0; font-size: 0.8rem; }
+        .breakdown-row { display: flex; justify-content: space-between; color: #666; margin-bottom: 2px; }
+        .small-text { font-size: 0.85rem; font-family: Arial, sans-serif; color: #6c757d; }
+
+        /* Fix for Telephone overlap */
+        #phone {
+            /* Manual override to push text to the right of the flag/code */
+            padding-left: 95px !important; 
+        }
+
+        /* Ensure the flag container doesn't overlap the typing area */
+        .iti__selected-dial-code {
+            margin-left: 4px;
+            font-size: 14px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="stepper-bar">
+        <div class="container">
+            <div class="stepper-container">
+                <div class="step-item step-active"><i class="fa-solid fa-circle-check step-icon"></i><span>Your selection</span></div>
+                <div class="step-line"></div>
+                <div class="step-item step-active"><div class="step-number">2</div><span>Your details</span></div>
+                <div class="step-line"></div>
+                <div class="step-item text-muted"><div class="step-number">3</div><span>Finish booking</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card p-3">
+                    <img src="/static/images/GML_Logo_Official.png" class="img-fluid rounded mb-2" style="background: #0c0707; padding: 10px;">
+                    <h5 class="mb-0 mt-2">Grande Mountain Lodge</h5>
+                    <p class="text-muted small mb-2">9903 100 St, Grande Cache, AB, Canada, T0E 0Y0</p>
+                    <div class="d-flex flex-wrap gap-3 mt-1">
+                        <span class="small"><i class="fa-solid fa-paw"></i> Pets allowed</span>
+                        <span class="small"><i class="fa-solid fa-wifi"></i> Free WiFi</span>
+                        <span class="small"><i class="fa-solid fa-square-parking"></i> Parking</span>
+                    </div>
+                </div>
+
+                <div class="card p-3">
+                    <h5 class="mb-0">Your booking details</h5>
+                    <div class="row my-3">
+                        <div class="col-6">
+                            <small class="text-muted d-block">Check-in</small>
+                            <strong id="summary-checkin">Tue 13 Jan 2026</strong>
+                            <small class="text-muted d-block">15:00 – 21:00</small>
+                        </div>
+                        <div class="col-6 border-start">
+                            <small class="text-muted d-block">Check-out</small>
+                            <strong id="summary-checkout">Fri 23 Jan 2026</strong>
+                            <small class="text-muted d-block">09:00 – 11:00</small>
+                        </div>
+                    </div>
+
+                    <div id="dynamic-rooms-list"></div>
+
+                    <div class="mt-3 pt-3 border-top">
+                        <div class="d-flex justify-content-between">
+                            <h6 class="mb-0">Total (including taxes)</h6>
+                            <h6 id="summary-grand-total">CAD 0.00</h6>
+                        </div>
+                        <div class="d-flex justify-content-between small mt-1">
+                            <h6 class="mb-0 text-muted">Payment at Booking</h6>
+                            <h6 class="text-muted">CAD 0.00</h6>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="col-md-8">
+                <div class="card p-4">
+                    <h5>Enter your details</h5>
+                    <div class="info-box my-3"><i class="fa-solid fa-circle-info me-2 text-primary"></i> Almost done! Just fill in the * required info</div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label>First name *</label>
+                            <div class="input-wrapper">
+                                <input type="text" id="first_name" required>
+                                <i class="fa-solid fa-circle-exclamation error-icon"></i>
+                            </div>
+                            <div class="error-message" id="error-first_name">Please fill in your first name</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label>Last name *</label>
+                            <div class="input-wrapper">
+                                <input type="text" id="last_name" required>
+                                <i class="fa-solid fa-circle-exclamation error-icon"></i>
+                            </div>
+                            <div class="error-message" id="error-last_name">Please fill in your last name</div>
+                        </div>
+                    </div>
+
+                    <label>Email address *</label>
+                    <div class="input-wrapper">
+                        <input type="email" id="email" required>
+                        <i class="fa-solid fa-circle-exclamation error-icon"></i>
+                    </div>
+                    <div class="error-message" id="error-email">Please fill in your email address</div>
+                    <p class="small-text">Confirmation email goes to this address</p>         
+                    
+                    <div class="mt-4">
+                        <label class="mb-2">Who are you booking for? (optional)</label>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="bookingFor" id="mainGuest" checked style="width: 1.2em; height: 1.2em; margin-top: 0.15em;">
+                            <label class="form-check-label ms-2 mt-0" for="mainGuest" style="font-weight: 400;">I am the main guest</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="bookingFor" id="someoneElse" style="width: 1.2em; height: 1.2em; margin-top: 0.15em;">
+                            <label class="form-check-label ms-2 mt-0" for="someoneElse" style="font-weight: 400;">Booking is for someone else</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card p-4 mt-3">
+                    <h5>Your address</h5>
+                    <div class="row">
+                        <div class="col-12">
+                            <label>Address *</label>
+                            <div class="input-wrapper">
+                                <input type="address" id="address" required>
+                                <i class="fa-solid fa-circle-exclamation error-icon"></i>
+                            </div>
+                            <div class="error-message" id="error-address">Please fill in your address</div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label>City *</label>
+                            <div class="input-wrapper">
+                                <input type="city" id="city" required>
+                                <i class="fa-solid fa-circle-exclamation error-icon"></i>
+                            </div>
+                            <div class="error-message" id="error-city">Please fill in your city</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label>State / Province</label>
+                            <input type="text">
+                        </div>
+                    </div>
+                    
+                    <label>Country/region *</label>
+                    <div class="country-only-dropdown">
+                        <input type="text" id="country-select" class="custom-input-style" placeholder="Select your country">
+                    </div>
+
+                    <label>Phone number *</label>
+                    <div class="input-wrapper">
+                        <input type="phone" id="phone" required>
+                        <i class="fa-solid fa-circle-exclamation error-icon"></i>
+                    </div>
+                    <div class="error-message" id="error-phone">Please fill in your phone number</div>
+                </div>
+
+                <div class="card p-4 mt-3">
+                    <h5>Your arrival time</h5>
+                    
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <p class="small-text">You can check in between 3:00PM and 9:00PM</p>
+                    </div>
+
+                    <label class="mb-2">Add your estimated arrival time (optional)</label>
+                    <select class="form-select custom-input-style" style="cursor: pointer;">
+                        <option value="" selected>Please select</option>
+                        <option value="15-16">3:00PM - 4:00PM</option>
+                        <option value="16-17">4:00PM - 5:00PM</option>
+                        <option value="17-18">5:00PM - 6:00PM</option>
+                        <option value="18-19">6:00PM - 7:00PM</option>
+                        <option value="19-20">7:00PM - 8:00PM</option>
+                        <option value="20-21">8:00PM - 9:00PM</option>
+                        <option value="not-sure">I don't know</option>
+                    </select>
+                    <p class="small-text mt-2">The property will do its best to have your room ready when you arrive.</p>
+                </div>
+
+                <div class="card p-4 mt-3">
+                    <h5>Special requests</h5>
+                    <p class="small-text">Special requests cannot be guaranteed – but the property will do its best to meet your needs. You can always make a special request after your booking is complete!</p>  
+                    <p class="small-text">Please write your requests in English or French. (optional)</p>  
+                    <textarea rows="4" placeholder="Optional requests..."></textarea>
+                </div>
+
+                <div class="text-end mt-4 mb-5">
+                    <button class="btn-next" onclick="validateForm()">Next: Final details <i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 1. Retrieve data from the previous page
+            const cartData = JSON.parse(localStorage.getItem('bookingCart')) || [];
+            const checkin = localStorage.getItem('checkinDate') || "Tue 13 Jan 2026";
+            const checkout = localStorage.getItem('checkoutDate') || "Fri 23 Jan 2026";
+            const guests = localStorage.getItem('guestSummary') || "2 Adults";
+
+            // Update the Dates at the top
+            document.getElementById('summary-checkin').innerText = checkin;
+            document.getElementById('summary-checkout').innerText = checkout;
+
+            const roomContainer = document.getElementById('dynamic-rooms-list');
+            let grandTotal = 0;
+
+            // 2. Logic: Loop through the actual rooms chosen by the user
+            if (cartData.length > 0) {
+                roomContainer.innerHTML = ''; // Clear placeholders
+                cartData.forEach((room, index) => {
+                    // MATH: Calculate the specific taxes requested
+                    const gst = room.price * 0.05; // 5% Canada GST
+                    const tourismLevy = room.price * 0.04; // 4% Alberta Tourism Levy
+                    const roomTotalTaxes = gst + tourismLevy;
+                    grandTotal += (room.price + roomTotalTaxes);
+
+                    roomContainer.innerHTML += `
+                        <div class="py-3 border-top">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong style="text-transform: uppercase;">Room ${index + 1}</strong><br>
+                                    <span class="small fw-bold">${room.name}</span><br>
+                                    <span class="small border-bottom border-dark clickable-trigger" onclick="toggleDrawer('room${index}-nights')">${room.nights} Nights stay</span>
+                                </div>
+                                <div class="text-end small fw-bold">CAD ${room.price.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+                            </div>
+
+                            <div id="room${index}-nights" class="breakdown-drawer">
+                                <div class="breakdown-row"><span>Base stay cost</span><span>CAD ${room.price.toFixed(2)}</span></div>
+                            </div>
+
+                            <div class="d-flex justify-content-between mt-1">
+                                <span class="small border-bottom border-dark clickable-trigger" onclick="toggleDrawer('room${index}-taxes')">Taxes and fees</span>
+                                <span class="small">CAD ${roomTotalTaxes.toFixed(2)}</span>
+                            </div>
+
+                            <div id="room${index}-taxes" class="breakdown-drawer">
+                                <div class="breakdown-row"><span>5% Goods and Services Tax (GST)</span><span>CAD ${gst.toFixed(2)}</span></div>
+                                <div class="breakdown-row"><span>4% Alberta Tourism Levy</span><span>CAD ${tourismLevy.toFixed(2)}</span></div>
+                            </div>
+
+                            <p class="small text-muted mt-2 mb-0">${guests}</p>
+                        </div>
+                    `;
+                });
+            } else {
+                // Fallback placeholder if cart is empty so you can still see the design
+                roomContainer.innerHTML = '<p class="text-muted small py-3">No rooms selected. Please go back to select a room.</p>';
+            }
+
+            document.getElementById('summary-grand-total').innerText = `CAD ${grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+        });
+
+        function toggleDrawer(drawerId) {
+            const drawer = document.getElementById(drawerId);
+            if (drawer) {
+                const isVisible = (drawer.style.display === "block");
+                drawer.style.display = isVisible ? "none" : "block";
+            }
+        }
+        
+        function validateForm() {
+            const fields = [
+                { id: 'first_name', name: 'first name' },
+                { id: 'last_name', name: 'last name' },
+                { id: 'email', name: 'email address', isEmail: true },
+                { id: 'address', name: 'address' },
+                { id: 'city', name: 'city' },
+                { id: 'phone', name: 'phone number', isPhone: true },
+                { id: 'card_name', name: "cardholder's name" },
+                { id: 'card_number', name: 'card number', isCard: true },
+                { id: 'expiry', name: 'expiry date', isExpiry: true },
+                { id: 'cvc', name: 'security code', isCvc: true }
+            ];
+
+            let firstErrorField = null;
+
+            fields.forEach(field => {
+                const input = document.getElementById(field.id);
+                const errorMsg = document.getElementById(`error-${field.id}`);
+                const errorIcon = input.parentElement.querySelector('.error-icon');
+                const value = input.value.trim();
+                let isValid = true;
+                let message = `Please fill in your ${field.name}`;
+
+                if (value === "") {
+                    isValid = false;
+                } else if (field.isEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+                    isValid = false;
+                } else if (field.isCard && value.replace(/\s/g, '').length < 13) {
+                    isValid = false; // Basic length check for valid cards
+                } else if (field.isExpiry) {
+                    // Logic: Matches exactly "01 / 26" format
+                    const expiryPattern = /^\d{2} \/ \d{2}$/;
+                    if (!expiryPattern.test(value)) {
+                        isValid = false;
+                        message = "Your card must have a valid expiry date";
+                    } else {
+                        // Extra Real-Life Logic: Check if month is valid (01-12)
+                        const month = parseInt(value.substring(0, 2));
+                        if (month < 1 || month > 12) {
+                            isValid = false;
+                            message = "Please enter a valid month (01-12)";
+                        }
+                    }
+                } else if (field.isCvc && (value.length < 3 || value.length > 4)) {
+                    isValid = false;
+                }
+
+                if (!isValid) {
+                    input.classList.add('is-invalid');
+                    errorMsg.style.display = 'block';
+                    if (errorIcon) errorIcon.style.display = 'block';
+                    if (!firstErrorField) firstErrorField = input;
+                } else {
+                    input.classList.remove('is-invalid');
+                    errorMsg.style.display = 'none';
+                    if (errorIcon) errorIcon.style.display = 'none';
+                }
+            });
+
+            if (firstErrorField) {
+                firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstErrorField.focus();
+            } else {
+                location.href = '/final_details'; 
+            }
+        }
+
+        // 1. Country Selector Initialization
+        const countryInput = document.querySelector("#country-select");
+        const itiCountry = window.intlTelInput(countryInput, {
+            initialCountry: "ca",
+            countrySearch: true, // Enables the search bar seen in your video
+            showSelectedDialCode: false, // Don't show +1 for a country name field
+            allowDropdown: true,
+            // This tells the library NOT to format as a phone number
+            placeholderNumberType: "NONE", 
+        });
+
+        // Logic to update the text field with the NAME of the country, not a number
+        const updateCountryName = () => {
+            const countryData = itiCountry.getSelectedCountryData();
+            countryInput.value = countryData.name;
+        };
+
+        // Update on initial load and whenever the user clicks a new country
+        updateCountryName();
+        countryInput.addEventListener('countrychange', updateCountryName);
+
+        // Prevent users from manually typing in the box (forces them to use the dropdown)
+        countryInput.addEventListener('keydown', (e) => e.preventDefault());
+
+        // 2. Phone Number Initialization
+        const phoneInput = document.querySelector("#phone");
+        const itiPhone = window.intlTelInput(phoneInput, {
+            initialCountry: "ca",
+            separateDialCode: true, // This puts the +1 outside the typing area
+            countrySearch: true,
+            // This allows the library to automatically format the number as the user types
+            utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@25.1.0/build/js/utils.js",
+        });
+
+        /* Logic Step: The library sometimes fails to push the text far enough 
+        if the dial code is long (e.g., +255). This listener ensures that 
+        whenever the country changes, we adjust the padding if needed.
+        */
+        phoneInput.addEventListener("countrychange", function() {
+            // Optional: You can dynamically adjust padding-left here if 95px is too much/little
+        });
+
+        // Auto-format Card Number (Spaces every 4 digits)
+        document.getElementById('card_number').addEventListener('input', function (e) {
+            e.target.value = e.target.value.replace(/[^\d]/g, '').replace(/(.{4})/g, '$1 ').trim();
+        });
+
+        // Auto-format Expiry Date (Allows typing after slash)
+        document.getElementById('expiry').addEventListener('input', function (e) {
+            // Remove all non-digits
+            let v = e.target.value.replace(/\D/g, '');
+            
+            // If user types '12', turn it into '12 / '
+            if (v.length > 2) {
+                e.target.value = v.substring(0, 2) + ' / ' + v.substring(2, 4);
+            } else {
+                e.target.value = v;
+            }
+        });
+
+        // Handle 'Backspace' specifically so the user can delete the slash easily
+        document.getElementById('expiry').addEventListener('keydown', function(e) {
+            if (e.key === 'Backspace') {
+                const value = this.value;
+                // If cursor is right after the " / ", jump back to the numbers
+                if (value.length === 5) {
+                    this.value = value.substring(0, 2);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

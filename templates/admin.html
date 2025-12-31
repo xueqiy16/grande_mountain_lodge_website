@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Grande Mountain Lodge - Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --bg: #f8f9fa; --card-bg: #ffffff; --primary: #e67e22; --text: #2c3e50; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 40px; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 40px; }
+        
+        .stat-card { background: var(--card-bg); padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); border: 1px solid #eee; }
+        .stat-label { font-size: 0.75rem; color: #888; text-transform: uppercase; font-weight: 700; }
+        .stat-value { font-size: 1.8rem; font-weight: 800; margin: 10px 0; }
+        
+        /* Room Status Section */
+        .status-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 40px; }
+        .room-status-box { padding: 20px; border-radius: 12px; border: 1px solid #eee; background: white; text-align: center; }
+        .tag-available { background: #e8f5e9; color: #2e7d32; padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: bold; }
+        .tag-occupied { background: #fff3e0; color: #ef6c00; padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: bold; }
+        .tag-maintenance { background: #ffebee; color: #c62828; padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: bold; }
+
+        table { width: 100%; background: white; border-radius: 16px; border-collapse: collapse; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+        th { text-align: left; padding: 15px 20px; background: #fafafa; border-bottom: 1px solid #eee; font-size: 0.8rem; color: #888; }
+        td { padding: 15px 20px; border-bottom: 1px solid #eee; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h1 style="margin:0; font-weight: 800; letter-spacing: -1px;">Dashboard</h1>
+            <p style="color:#888; margin-top:5px; font-weight: 500;">Sunday, December 21, 2025</p>
+        </div>
+        <button onclick="location.reload()" style="padding:10px 20px; border-radius:10px; border:1px solid #ddd; background:white; cursor:pointer; font-weight: 600;">
+            <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-label">Occupancy Rate</div>
+            <div class="stat-value">{{ occupancy|round|int }}%</div>
+            <div style="color:#2e7d32; font-size:0.8rem; font-weight: 600;">
+                <i class="fas fa-arrow-up"></i> {{ total_booked }} of 10 rooms
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Available Rooms</div>
+            <div class="stat-value">{{ available }}</div>
+            <div style="color:#888; font-size:0.8rem; font-weight: 500;">Ready for guests</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Total Bookings</div>
+            <div class="stat-value">{{ total_booked }}</div>
+            <div style="color:#888; font-size:0.8rem; font-weight: 500;">Active reservations</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Revenue</div>
+            <div class="stat-value">${{ "%.0f"|format(revenue) }}</div>
+            <div style="color:#2e7d32; font-size:0.8rem; font-weight: 600;">
+                <i class="fas fa-chart-line"></i> Total earnings
+            </div>
+        </div>
+    </div>
+
+    <h3 style="margin-bottom: 20px; font-weight: 700;">Room Status</h3>
+    <div class="status-grid">
+        {% for room in rooms %}
+        <div class="room-status-box">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                <strong style="font-size: 1.1rem;">#{{ room.no }}</strong>
+                {% if room.status == 'available' %}
+                    <i class="fas fa-bed" style="color: #ddd;"></i>
+                {% elif room.status == 'occupied' %}
+                    <i class="fas fa-user" style="color: #ef6c00;"></i>
+                {% else %}
+                    <i class="fas fa-wrench" style="color: #c62828;"></i>
+                {% endif %}
+            </div>
+            <span class="tag-{{ room.status }}">
+                {{ room.status|capitalize }}
+            </span>
+            <div style="font-size: 0.65rem; color: #aaa; margin-top: 10px; font-weight: 500; line-height: 1.2;">
+                {{ room.type }}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <h3 style="margin: 40px 0 20px 0; font-weight: 700;">Active Bookings</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>ROOM TYPE</th>
+                <th>CHECK-IN</th>
+                <th>CHECK-OUT</th>
+                <th>GUESTS</th>
+                <th>AMOUNT</th>
+                <th>ACTION</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for booking in bookings %}
+            <tr>
+                <td><strong>{{ booking[1] }}</strong></td>
+                <td>{{ booking[2] }}</td>
+                <td>{{ booking[3] }}</td>
+                <td style="color: #666;">
+                    {{ booking[4] }}A, {{ booking[5] }}C, {{ booking[6] }}P
+                </td>
+                <td style="font-weight: 800; color: #000;">
+                    ${{ "%.2f"|format(booking[7]) }}
+                </td>
+                <td>
+                    <a href="/delete-booking/{{ booking[0] }}" 
+                       onclick="return confirm('Permanently delete this booking?')" 
+                       style="color:#c62828; text-decoration:none; font-size: 1.1rem;">
+                        <i class="fas fa-trash-alt"></i>
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+            {% if not bookings %}
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 40px; color: #999;">
+                    No active bookings found.
+                </td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</body>
+</html>
