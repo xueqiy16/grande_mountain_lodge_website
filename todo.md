@@ -19,7 +19,7 @@ Lightweight UI/UX enhancements and page transitions
 Privacy and Booking Conditions compliance
 
 Bucketed Architecture
-1. Hosting & Domain
+1. Hosting & Domain ✅
 
 Tools: Vercel, GitHub, Let’s Encrypt (built-in to Vercel)
 Objective: Deploy website, enable HTTPS, connect custom domain.
@@ -42,7 +42,7 @@ Let Vercel automatically enable HTTPS (free via Let’s Encrypt).
 
 Estimated Time: 30–60 minutes
 
-2. Database
+2. Database ✅
 
 Tools: Supabase (cloud PostgreSQL, free tier)
 Objective: Secure, persistent storage for bookings, rooms, guests, payment tokens.
@@ -145,7 +145,7 @@ Store only allowed fields in bookings table.
 
 Optionally perform $0 or $1 authorization.
 
-Email confirmation sent automatically.
+Email confirmation sent automatically (with cancellation link).
 
 Security Notes:
 
@@ -171,7 +171,7 @@ Optional: include PDF attachment receipt.
 
 Estimated Time: 1–2 hours
 
-6. Front-End Aesthetics & Transitions
+6. Front-End Aesthetics & Transitions ✅
 
 Tools: TailwindCSS, Framer Motion
 Steps:
@@ -184,7 +184,7 @@ Focus on clean, minimal, professional aesthetic.
 
 Estimated Time: 1–2 hours
 
-7. Privacy Policy & Booking Conditions
+7. Privacy Policy ✅ & Booking Conditions 
 
 Tasks:
 

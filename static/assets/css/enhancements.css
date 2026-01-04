@@ -1,0 +1,840 @@
+/* ============================================
+   Grande Mountain Lodge - UI Enhancements
+   Lightweight, CSS-first improvements
+   ============================================ */
+
+/* ============================================
+   0. CRITICAL FIXES
+   ============================================ */
+
+/* Fix 1: Header Navigation Alignment */
+#header nav {
+    display: flex;
+    align-items: center;
+    height: 100%;
+}
+
+#header nav ul {
+    display: flex;
+    align-items: center;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+}
+
+#header nav ul li {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 1em;
+    height: 100%;
+}
+
+#header nav ul li a {
+    display: inline-flex;
+    align-items: center;
+    border: 0;
+    color: inherit;
+    outline: 0;
+    height: inherit;
+    line-height: inherit;
+}
+
+#header nav ul li a.white {
+    display: inline-flex;
+    align-items: center;
+}
+
+#header nav ul li a.button.primary {
+    display: inline-flex;
+    align-items: center;
+    height: 2em;
+    line-height: 2em;
+    padding: 0 1.25em;
+    /* Center the button vertically within the header */
+    margin-top: calc((3.5em - 2em) / 2);
+    margin-bottom: calc((3.5em - 2em) / 2);
+}
+
+/* Fix 3: Prevent Background Image Overflow/Echoes & Restore Parallax */
+section.spotlight,
+#banner {
+    overflow: hidden !important;
+    position: relative;
+    background-repeat: no-repeat !important;
+    background-size: cover !important;
+    background-position: center center !important;
+    background-color: #1c1d26 !important; /* Safety fallback */
+}
+
+/* Restore Parallax for Desktop */
+@media screen and (min-width: 981px) {
+    section.spotlight,
+    #banner {
+        background-attachment: fixed !important;
+    }
+}
+
+section.spotlight .image.main {
+    overflow: hidden !important;
+    position: relative;
+    height: 100%;
+    width: 100%;
+}
+
+section.spotlight .image.main img {
+    object-fit: cover;
+    width: 100%;
+    height: 100%;
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+/* Ensure no background images bleed through */
+section.spotlight .image.main {
+    background-size: cover !important;
+    background-position: center center !important;
+    background-repeat: no-repeat !important;
+}
+
+/* Fix 4: Restore visibility and motion effects */
+section.spotlight .content {
+    position: relative;
+    z-index: 10;
+    overflow: visible;
+    opacity: 0;
+    transition: opacity 0.8s ease-out, transform 0.8s ease-out !important;
+}
+
+/* When section comes into view, animate content */
+section.spotlight.in-view .content {
+    opacity: 1 !important;
+    transform: none !important;
+}
+
+/* Style-specific animations */
+section.spotlight.style1 .content {
+    transform: translateY(30px);
+}
+
+section.spotlight.style2.right .content {
+    transform: translateX(30px);
+}
+
+section.spotlight.style3.left .content {
+    transform: translateX(-30px);
+}
+
+/* Intersection Observer will add 'in-view' class */
+section.spotlight.style1.in-view .content {
+    transform: translateY(0);
+}
+
+section.spotlight.style2.right.in-view .content {
+    transform: translateX(0);
+}
+
+section.spotlight.style3.left.in-view .content {
+    transform: translateX(0);
+}
+
+/* Fix 5: Restore Alternating Layouts & Travel Guide Positioning */
+/* Ensure the original HTML5 UP spotlight layout logic isn't overridden */
+section.spotlight {
+    display: flex;
+    flex-direction: column; /* Default for mobile */
+}
+
+@media screen and (min-width: 737px) {
+    /* Style 2 (About Our Lodge) - RIGHT */
+    section.spotlight.style2.right {
+        flex-direction: row-reverse !important;
+    }
+
+    /* Style 3 (Our Location) - LEFT */
+    section.spotlight.style3.left {
+        flex-direction: row !important;
+    }
+}
+
+/* Travel Guide Specific Fixes */
+#hiking-spotlight {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+    min-height: 400px;
+}
+
+#hiking-spotlight .content {
+    margin-top: auto !important;
+    padding-bottom: 2rem !important;
+}
+
+/* Ensure sections in Travel Guide are visible */
+#two1, #three1 {
+    display: flex !important;
+}
+
+/* Fix 6: Booking Bar Alignment */
+.search-summary {
+    display: flex !important;
+    align-items: stretch !important; /* Allow children to fill height */
+}
+
+.search-summary .search-item {
+    display: flex !important;
+    align-items: center !important;
+}
+
+.search-summary .input-stack {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important; /* Align labels and inputs to the baseline */
+    height: 100% !important;
+}
+
+.search-summary .input-stack label {
+    height: 1.2rem !important;
+    line-height: 1.2rem !important;
+    margin-bottom: 0.2rem !important;
+    font-size: 0.65rem !important;
+    text-transform: uppercase !important;
+    font-weight: 600 !important;
+}
+
+.search-summary .text-minimal,
+.search-summary #guest-summary {
+    line-height: 1.4 !important;
+    font-weight: 600 !important;
+}
+
+/* ============================================
+   1. PAGE TRANSITIONS
+   ============================================ */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Apply fade-in to page content */
+#page-wrapper {
+    animation: fadeIn 0.25s ease-out;
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+    #page-wrapper,
+    section,
+    * {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* Main content sections fade in */
+section {
+    animation: fadeIn 0.3s ease-out;
+    animation-fill-mode: both;
+}
+
+/* Stagger section animations slightly */
+section:nth-child(1) { animation-delay: 0.05s; }
+section:nth-child(2) { animation-delay: 0.1s; }
+section:nth-child(3) { animation-delay: 0.15s; }
+section:nth-child(4) { animation-delay: 0.2s; }
+
+/* ============================================
+   2. BUTTON ENHANCEMENTS
+   ============================================ */
+
+/* Base button improvements */
+.button,
+button.button,
+a.button,
+.btn-next,
+.reserve-btn,
+.search-btn-minimal,
+.book-btn {
+    transition: all 0.2s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Primary button hover state */
+.button.primary:hover,
+button.button.primary:hover,
+a.button.primary:hover {
+    background-color: #c93a4f !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(228, 76, 101, 0.3);
+}
+
+/* Primary button active state */
+.button.primary:active,
+button.button.primary:active,
+a.button.primary:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(228, 76, 101, 0.2);
+}
+
+/* Standard button hover */
+.button:not(.primary):hover,
+button.button:not(.primary):hover,
+a.button:not(.primary):hover {
+    background-color: #f5f5f5;
+    border-color: #ddd;
+    transform: translateY(-1px);
+}
+
+/* Standard button active */
+.button:not(.primary):active,
+button.button:not(.primary):active,
+a.button:not(.primary):active {
+    transform: translateY(0);
+}
+
+/* Focus-visible for accessibility */
+.button:focus-visible,
+button.button:focus-visible,
+a.button:focus-visible,
+.btn-next:focus-visible,
+.reserve-btn:focus-visible,
+.search-btn-minimal:focus-visible,
+.book-btn:focus-visible {
+    outline: 2px solid #e44c65;
+    outline-offset: 2px;
+}
+
+/* Booking page specific buttons */
+.book-btn:hover {
+    background-color: #333 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.book-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.reserve-btn:hover {
+    background-color: #152a3f !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(26, 43, 72, 0.3);
+}
+
+.reserve-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(26, 43, 72, 0.2);
+}
+
+.search-btn-minimal:hover {
+    background-color: #333 !important;
+    transform: translateY(-1px);
+}
+
+.search-btn-minimal:active {
+    transform: translateY(0);
+}
+
+.btn-next:hover {
+    background-color: #0056b3 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 108, 228, 0.3);
+}
+
+.btn-next:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(0, 108, 228, 0.2);
+}
+
+/* ============================================
+   3. CONSISTENT SPACING
+   ============================================ */
+
+/* Section spacing consistency */
+section {
+    margin-bottom: 3rem;
+}
+
+section.wrapper {
+    padding: 4rem 0;
+}
+
+/* Container padding consistency */
+.container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+}
+
+/* Card spacing */
+.card {
+    margin-bottom: 1.5rem;
+}
+
+.card:last-child {
+    margin-bottom: 0;
+}
+
+/* Form field spacing */
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="date"],
+select,
+textarea {
+    margin-bottom: 1rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="tel"]:focus,
+input[type="date"]:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: #e44c65;
+    box-shadow: 0 0 0 3px rgba(228, 76, 101, 0.1);
+}
+
+/* ============================================
+   4. VISUAL CONSISTENCY
+   ============================================ */
+
+/* Consistent border radius */
+.button,
+.card,
+.room-card,
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+select,
+textarea {
+    border-radius: 6px;
+}
+
+/* Consistent shadows */
+.card,
+.room-card,
+.cart-card {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: box-shadow 0.2s ease;
+}
+
+.card:hover,
+.room-card:hover,
+.cart-card:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+/* ============================================
+   5. BOOKING PAGE IMPROVEMENTS
+   ============================================ */
+
+/* Better visual hierarchy for booking form */
+.booking-container .card h5 {
+    margin-bottom: 1.25rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #111;
+}
+
+.booking-container label {
+    margin-bottom: 0.5rem;
+    display: block;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #333;
+}
+
+/* Form field improvements */
+.booking-container input[type="text"],
+.booking-container input[type="email"],
+.booking-container input[type="tel"],
+.booking-container select,
+.booking-container textarea {
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+}
+
+.booking-container input[type="text"]:focus,
+.booking-container input[type="email"]:focus,
+.booking-container input[type="tel"]:focus,
+.booking-container select:focus,
+.booking-container textarea:focus {
+    border-color: #006ce4;
+    box-shadow: 0 0 0 3px rgba(0, 108, 228, 0.1);
+}
+
+/* Room card spacing improvements */
+.room-card {
+    margin-bottom: 2rem;
+}
+
+.room-card:last-child {
+    margin-bottom: 0;
+}
+
+/* Search summary improvements */
+.search-summary {
+    margin-bottom: 2rem;
+    padding: 1rem 1.5rem;
+}
+
+/* Cart card improvements */
+.cart-card {
+    padding: 2rem;
+}
+
+.cart-item {
+    padding: 1rem 0;
+    border-bottom: 1px solid #eee;
+}
+
+.cart-item:last-child {
+    border-bottom: none;
+}
+
+/* Better spacing between sections */
+.main-content {
+    gap: 2rem;
+}
+
+@media screen and (max-width: 768px) {
+    .main-content {
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+    
+    .cart-card {
+        position: relative;
+        top: 0;
+    }
+}
+
+/* Loading state for booking submission */
+.btn-next.loading,
+.reserve-btn.loading {
+    position: relative;
+    color: transparent;
+    pointer-events: none;
+}
+
+.btn-next.loading::after,
+.reserve-btn.loading::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-left: -8px;
+    margin-top: -8px;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Moneris iframe container - subtle loading indicator */
+#moneris-iframe-container {
+    position: relative;
+    min-height: 400px;
+}
+
+#moneris-iframe-container::before {
+    content: "Loading secure payment form...";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #666;
+    font-size: 0.9rem;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+#moneris-iframe-container:empty::before {
+    opacity: 1;
+}
+
+/* ============================================
+   6. TYPOGRAPHY CONSISTENCY
+   ============================================ */
+
+/* Consistent heading sizes */
+h2 {
+    font-size: 2em;
+    line-height: 1.4;
+    margin-bottom: 1.5rem;
+}
+
+h3 {
+    font-size: 1.5em;
+    line-height: 1.4;
+    margin-bottom: 1rem;
+}
+
+h4 {
+    font-size: 1.25em;
+    line-height: 1.4;
+    margin-bottom: 0.75rem;
+}
+
+h5 {
+    font-size: 1.1em;
+    line-height: 1.4;
+    margin-bottom: 0.75rem;
+}
+
+/* ============================================
+   7. INTERACTIVE ELEMENTS
+   ============================================ */
+
+/* FAQ toggle improvements */
+.faq-question {
+    transition: all 0.2s ease;
+}
+
+.faq-question:hover {
+    background-color: #f8f8f8;
+}
+
+.faq-question.active {
+    background-color: #f0f0f0;
+}
+
+/* Room card hover improvements */
+.room-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.room-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+/* Link hover improvements */
+a:not(.button):hover {
+    border-bottom-color: #e44c65;
+}
+
+/* ============================================
+   SCROLL TOGGLE ICON ENHANCEMENTS
+   ============================================ */
+
+/* Default: White icon for hero section and dark backgrounds */
+.goto-next:before {
+    filter: brightness(0) invert(1); /* Makes icon white */
+    transition: filter 0.3s ease;
+}
+
+/* Change icon to black when in white background sections (Who Are We? - style1) */
+section.spotlight.style1 .goto-next:before,
+section.spotlight.style1.bottom .goto-next:before {
+    filter: brightness(0); /* Makes icon black on white sections */
+}
+
+/* Ensure icon stays visible throughout scroll (prevent disappearing) */
+.goto-next {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
+.spotlight .goto-next {
+    opacity: 1 !important;
+}
+
+/* Override inactive state to keep toggle visible */
+.spotlight.inactive .goto-next {
+    opacity: 1 !important;
+    transform: translate(0, 0) !important;
+}
+
+/* ============================================
+   8. ACCESSIBILITY IMPROVEMENTS
+   ============================================ */
+
+/* Focus indicators */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid #e44c65;
+    outline-offset: 2px;
+}
+
+/* Skip to main content (hidden but accessible) */
+.skip-to-main {
+    position: absolute;
+    left: -9999px;
+    z-index: 999;
+}
+
+.skip-to-main:focus {
+    left: 6px;
+    top: 6px;
+    padding: 8px 16px;
+    background: #e44c65;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+}
+
+/* ============================================
+   9. BOOKER CONTACT PAGE IMPROVEMENTS
+   ============================================ */
+
+/* Stepper bar improvements */
+.stepper-bar {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.step-item {
+    transition: color 0.2s ease;
+}
+
+/* Card improvements for booker contact */
+.card.p-3,
+.card.p-4 {
+    transition: box-shadow 0.2s ease;
+}
+
+.card.p-3:hover,
+.card.p-4:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+/* Input wrapper improvements */
+.input-wrapper {
+    margin-bottom: 0.5rem;
+}
+
+.input-wrapper input:focus {
+    border-color: #006ce4;
+    box-shadow: 0 0 0 3px rgba(0, 108, 228, 0.1);
+}
+
+/* Info box improvements */
+.info-box {
+    border-radius: 6px;
+    margin-bottom: 1.5rem;
+}
+
+/* Form section spacing */
+.card.p-4 + .card.p-4 {
+    margin-top: 1.5rem;
+}
+
+/* ============================================
+   10. FINAL DETAILS PAGE IMPROVEMENTS
+   ============================================ */
+
+.container.mt-5 {
+    max-width: 900px;
+    margin: 3rem auto;
+    padding: 0 1.5rem;
+}
+
+.container.mt-5 .card {
+    margin-bottom: 1.5rem;
+}
+
+.container.mt-5 .card h5 {
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #111;
+}
+
+.container.mt-5 .card p {
+    margin-bottom: 0.75rem;
+    line-height: 1.6;
+}
+
+.container.mt-5 .card p:last-child {
+    margin-bottom: 0;
+}
+
+/* ============================================
+   11. RESPONSIVE IMPROVEMENTS
+   ============================================ */
+
+@media screen and (max-width: 736px) {
+    section.wrapper {
+        padding: 2rem 0;
+    }
+    
+    .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
+    h2 {
+        font-size: 1.75em;
+    }
+    
+    h3 {
+        font-size: 1.35em;
+    }
+    
+    .booking-container {
+        margin: 1rem auto;
+        padding: 1rem;
+    }
+    
+    .search-summary {
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1rem;
+    }
+    
+    .search-divider-slim {
+        display: none;
+    }
+    
+    .room-card {
+        flex-direction: column;
+        height: auto;
+    }
+    
+    .room-image {
+        width: 100%;
+        height: 250px;
+    }
+    
+    .room-details {
+        width: 100%;
+        padding: 1.5rem;
+    }
+}
+

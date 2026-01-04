@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Your Booking | Grande Mountain Lodge</title>
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --bg-gray: #fcfcfc;
+            --border-color: #eee;
+            --text-dark: #1a1a1a;
+            --text-muted: #666;
+            --text-light-grey: #999;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-gray);
+            color: var(--text-dark);
+            padding-bottom: 80px;
+        }
+
+        .container { max-width: 800px; margin: 0 auto; padding: 0 20px; }
+
+        .header-section { text-align: center; padding: 40px 0; }
+        .header-section h1 { font-family: 'Libre+Baskerville', serif; font-weight: 700; margin-bottom: 10px; }
+        .header-section p { color: var(--text-muted); font-size: 0.95rem; }
+
+        .review-card {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 24px;
+            padding: 30px;
+        }
+
+        .card-title-area { display: flex; align-items: center; margin-bottom: 25px; }
+        .icon-circle {
+            width: 40px; height: 40px; background: #f0f0f0; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin-right: 15px; font-size: 1.2rem;
+        }
+        .card-title-area h5 { font-family: 'Libre+Baskerville', serif; font-weight: 700; margin: 0; font-size: 1.25rem; }
+
+        /* Data Rows */
+        .info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f5f5f5; }
+        .info-row:last-child { border-bottom: none; }
+        .label { color: var(--text-muted); font-size: 0.9rem; }
+        .value { font-weight: 600; font-size: 0.95rem; }
+
+        /* Payment Section Overhaul */
+        .payment-display { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
+        .card-visual {
+            background: #f4f4f4; width: 60px; height: 40px; border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; color: #777; font-size: 0.8rem; text-transform: uppercase;
+        }
+        .card-details-text { display: flex; flex-direction: column; }
+        .card-main-info { font-weight: 600; font-size: 1.1rem; color: #111; }
+        .card-expiry-info { color: var(--text-muted); font-size: 0.9rem; }
+
+        /* Policy Section Overhaul */
+        .policy-item { display: flex; align-items: flex-start; margin-bottom: 25px; border-bottom: 1px solid #f9f9f9; padding-bottom: 15px; }
+        .policy-item:last-child { border-bottom: none; }
+        .policy-icon { width: 40px; margin-right: 15px; font-size: 1.2rem; color: #111; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; line-height: 1.4; }
+        .policy-text { flex: 1; }
+        .policy-text h6 { font-weight: 500; margin-bottom: 6px; font-size: 0.95rem; color: #111; line-height: 1.4; margin-top: 0; }
+        .policy-text p { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 4px; line-height: 1.5; }
+        .policy-muted-note { font-style: italic; font-size: 0.8rem; color: #999; margin-top: 5px; }
+
+        /* Buttons & Footer */
+        .btn-container { margin-top: 40px; display: flex; flex-direction: column; gap: 12px; }
+        .btn-confirm { background: #111; color: white; border: none; padding: 18px; border-radius: 8px; font-weight: 600; font-size: 1rem; cursor: pointer; }
+        .btn-back { background: white; color: #111; border: 1px solid #ddd; padding: 14px; border-radius: 8px; font-weight: 500; cursor: pointer; }
+        
+        .legal-disclaimer { text-align: center; font-size: 0.8rem; color: var(--text-muted); margin: 20px 0 40px 0; line-height: 1.4; }
+        .brand-footer { text-align: center; }
+        .brand-footer .lodge-name { font-size: 1rem; color: #666; font-weight: 400; margin-bottom: 4px; }
+        .brand-footer .tagline { font-size: 0.95rem; color: #666; font-weight: 400; }
+        
+        .logo-footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-bottom: 40px;
+        }
+        .logo-footer img {
+            max-width: 200px;
+            height: auto;
+        }
+
+        .payment-disclaimer {
+            background: #f9f9f9; padding: 12px; border-radius: 8px; font-size: 0.8rem; 
+            color: var(--text-muted); display: flex; align-items: center; gap: 10px;
+        }
+
+        .logo-footer img {
+            width: 80px;   /* adjust as needed */
+            height: auto;   /* keeps aspect ratio */
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-section">
+        <h1>Review Your Booking</h1>
+        <p>Please review your reservation details before confirming your stay with us.</p>
+    </div>
+
+    <div class="review-card">
+        <div class="card-title-area">
+            <div class="icon-circle"><i class="bi bi-person"></i></div>
+            <h5>Guest Information</h5>
+        </div>
+        <div class="info-row"><span class="label">Name</span><span class="value" id="review-name"></span></div>
+        <div class="info-row"><span class="label">Email</span><span class="value" id="review-email"></span></div>
+        <div class="info-row"><span class="label">Phone</span><span class="value" id="review-phone"></span></div>
+        <div class="info-row"><span class="label">Address</span><span class="value" id="review-address"></span></div>
+        <div class="info-row"><span class="label">City</span><span class="value" id="review-city"></span></div>
+        <div class="info-row"><span class="label">State / Province</span><span class="value" id="review-state"></span></div>
+        <div class="info-row"><span class="label">Country</span><span class="value" id="review-country"></span></div>
+    </div>
+
+    <div id="dynamic-booking-summary"></div>
+
+    <div class="review-card">
+        <div class="card-title-area">
+            <div class="icon-circle"><i class="bi bi-exclamation-circle"></i></div>
+            <h5>Cancellation Policy</h5>
+        </div>
+        
+        <div class="policy-item">
+            <div class="policy-icon"><i class="bi bi-check2-circle"></i></div>
+            <div class="policy-text">
+                <h6>General Cancellation Policy</h6>
+                <p>You can cancel for free until 1 day (24 hrs) before your arrival. If you cancel within 1 day of arrival, the cancellation fee will be the cost of the first night. If you don't show up, the no-show fee will be the same as the cancellation fee. You can use the link in the confirmation email to cancel your booking.</p>
+                <p class="policy-muted-note">Cancellation deadlines are in the property's local time. (MST)</p>
+            </div>
+        </div>
+
+        <div id="dynamic-cancellation-list"></div>
+
+        <div class="policy-item">
+            <div class="policy-icon"><i class="bi bi-currency-dollar"></i></div>
+            <div class="policy-text">
+                <h6>Taxes and service charges</h6>
+                <p>4% TAX is excluded. 5% Goods & services tax is excluded. A City tax is not applicable.</p>
+            </div>
+        </div>
+
+        <div class="policy-item">
+            <div class="policy-icon"><i class="bi bi-emoji-smile"></i></div>
+            <div class="policy-text">
+                <h6>Child policies</h6>
+                <p>Children of all ages are welcome. Children 18 and above will be charged as adults at this property.</p>
+            </div>
+        </div>
+
+        <div class="policy-item">
+            <div class="policy-icon"><i class="bi bi-briefcase"></i></div>
+            <div class="policy-text">
+                <h6>Crib and extra bed policies</h6>
+                <p>No cribs or extra beds are available.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="btn-container">
+        <button id="confirm-booking" class="btn-confirm">Confirm Booking</button>
+        <button onclick="history.back()" class="btn-back">Go Back</button>
+        
+        <p class="legal-disclaimer">By clicking "Confirm Booking", you agree to our <a href="/terms-and-conditions" style="color: #0066cc; text-decoration: underline;">Terms & Conditions</a> and <a href="/privacy-policy" style="color: #0066cc; text-decoration: underline;">Privacy Policy</a>.</p>
+        
+        <div class="brand-footer">
+            <div class="lodge-name">Grande Mountain Lodge Motel</div>
+            <div class="tagline">Your mountain escape awaits</div>
+            <img src="/static/images/GML_Logo.png"
+                alt="Grande Mountain Lodge Logo"
+                style="width: 80px; height: auto;">
+        </div>
+    </div>   
+</div>
+
+<script>
+    window.addEventListener('DOMContentLoaded', () => {
+        // 1. Guest Data - Using Fallbacks to prevent empty display during testing
+        document.getElementById('review-name').textContent = sessionStorage.getItem('guest_name') || "Not Provided";
+        document.getElementById('review-email').textContent = sessionStorage.getItem('guest_email') || "Not Provided";
+        document.getElementById('review-phone').textContent = sessionStorage.getItem('guest_phone') || "Not Provided";
+        document.getElementById('review-address').textContent = sessionStorage.getItem('guest_address') || "Not Provided";
+        
+        // Fix: Ensuring these match the keys saved in booker_contact.html
+        document.getElementById('review-city').textContent = sessionStorage.getItem('review_city') || sessionStorage.getItem('guest_city') || "Not Provided";
+        document.getElementById('review-state').textContent = sessionStorage.getItem('guest_state') || "N/A";
+        document.getElementById('review-country').textContent = sessionStorage.getItem('review_country') || sessionStorage.getItem('guest_country') || "Not Provided";
+
+        // 2. Dynamic Rooms, Pets, & Cancellation
+        const cartData = JSON.parse(localStorage.getItem('bookingCart')) || [];
+        const bookingContainer = document.getElementById('dynamic-booking-summary');
+        const cancellationContainer = document.getElementById('dynamic-cancellation-list');
+
+        if (bookingContainer && cancellationContainer) {
+            bookingContainer.innerHTML = ''; // Clear previous content
+            cancellationContainer.innerHTML = '';
+
+            // Format currency function
+            const formatCurrency = (amount) => `CAD ${amount.toFixed(2)}`;
+
+            cartData.forEach((room, index) => {
+                // Logic for Guest/Pet String
+                let guestParts = [`${room.adults} ${room.adults === 1 ? 'Adult' : 'Adults'}`];
+                if (room.children > 0) guestParts.push(`${room.children} ${room.children === 1 ? 'Child' : 'Children'}`);
+                if (room.pets > 0) guestParts.push(`${room.pets} ${room.pets === 1 ? 'Pet' : 'Pets'}`);
+                const guestSummary = guestParts.join(', ');
+
+                // Calculate costs - room.price is already the total cost for all nights
+                const costBeforeTax = room.price || 0;
+                const taxRate = 0.09; // 4% + 5% = 9% as per policy
+                const tax = costBeforeTax * taxRate;
+                const totalCost = costBeforeTax + tax;
+
+                // Get checkinDate for cancellation date calculation
+                const checkinDate = new Date(room.checkin);
+
+                // Generate Room Card
+                bookingContainer.innerHTML += `
+                    <div class="review-card">
+                        <div class="card-title-area">
+                            <div class="icon-circle"><i class="bi bi-door-closed"></i></div>
+                            <h5>Room ${index + 1}: ${room.name}</h5>
+                        </div>
+                        <div class="info-row"><span class="label">Check-in</span><span class="value">${room.checkin}</span></div>
+                        <div class="info-row"><span class="label">Check-out</span><span class="value">${room.checkout}</span></div>
+                        <div class="info-row"><span class="label">Guests</span><span class="value">${guestSummary}</span></div>
+                        <div class="info-row"><span class="label">Cost before tax</span><span class="value">${formatCurrency(costBeforeTax)}</span></div>
+                        <div class="info-row"><span class="label">Tax</span><span class="value">${formatCurrency(tax)}</span></div>
+                        <div class="info-row"><span class="label">Total Cost for Room ${index + 1}</span><span class="value">${formatCurrency(totalCost)}</span></div>
+                    </div>`;
+
+                // Calculate Cancellation Date (1 day before check-in)
+                checkinDate.setDate(checkinDate.getDate() - 1);
+                const cancelDateStr = checkinDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+                // Generate Cancellation Policy Item
+                cancellationContainer.innerHTML += `
+                    <div class="policy-item">
+                        <div class="policy-icon"><i class="bi bi-check2-circle"></i></div>
+                        <div class="policy-text">
+                            <h6>Free cancellation for ${room.name} before ${cancelDateStr}</h6>
+                            <p>You can cancel for free until 24 hours before your arrival. If you cancel within 1 day of arrival, the fee will be the cost of the first night.</p>
+                        </div>
+                    </div>`;
+            });
+
+            // Add Total Cost section after all rooms
+            let grandTotal = 0;
+            cartData.forEach((room) => {
+                const costBeforeTax = room.price || 0;
+                const taxRate = 0.09;
+                const tax = costBeforeTax * taxRate;
+                const totalCost = costBeforeTax + tax;
+                grandTotal += totalCost;
+            });
+
+            bookingContainer.innerHTML += `
+                <div class="review-card">
+                    <div class="card-title-area">
+                        <div class="icon-circle"><i class="bi bi-currency-dollar"></i></div>
+                        <h5>Total Cost</h5>
+                    </div>
+                    <div class="info-row"><span class="label">Total Cost</span><span class="value">${formatCurrency(grandTotal)}</span></div>
+                    <div class="info-row"><span class="label">Payment at Booking</span><span class="value">CAD 0.00</span></div>
+                </div>`;
+
+            // Add Other Information section
+            const bookingFor = sessionStorage.getItem('booking_for') || "N/A";
+            const arrivalTime = sessionStorage.getItem('arrival_time') || "N/A";
+            const specialRequests = sessionStorage.getItem('special_requests') || "N/A";
+
+            bookingContainer.innerHTML += `
+                <div class="review-card">
+                    <div class="card-title-area">
+                        <div class="icon-circle"><i class="bi bi-info-circle"></i></div>
+                        <h5>Other Information</h5>
+                    </div>
+                    <div class="info-row"><span class="label">Who are you booking for</span><span class="value">${bookingFor}</span></div>
+                    <div class="info-row"><span class="label">Your arrival time</span><span class="value">${arrivalTime}</span></div>
+                    <div class="info-row"><span class="label">Special requests</span><span class="value">${specialRequests}</span></div>
+                </div>`;
+        }
+    });
+
+    document.getElementById('confirm-booking').addEventListener('click', () => {
+        alert("Booking Confirmed!");
+    });
+</script>
+</body>
+</html>

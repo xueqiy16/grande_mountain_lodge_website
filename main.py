@@ -242,6 +242,17 @@ def rooms():
     # This renders the rooms.html file located in your templates folder
     return render_template('rooms.html')
 
+@app.route('/final_details')
+def final_details():
+    return render_template('final_details.html')
+
+@app.route('/privacy-policy')
+def privacy_policy():
+    return render_template('private_policy.html')
+
+@app.route('/terms-and-conditions')
+def terms_and_conditions():
+    return render_template('terms_and_conditions.html')
+
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
-

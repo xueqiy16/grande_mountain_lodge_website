@@ -5,6 +5,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@25.1.0/build/css/intlTelInput.css">
     <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@25.1.0/build/js/intlTelInput.min.js"></script>
+    <link rel="stylesheet" href="/static/assets/css/enhancements.css" />
     <title>Your Details - Grande Mountain Lodge</title>
     <style>
         body { 
@@ -15,11 +16,11 @@
         /* --- Payment Section Styling --- */
         .card-icons {
             display: flex;
-            gap: 8px;
+            gap: 12px;
             margin-bottom: 20px;
         }
         .card-icons img {
-            height: 24px;
+            height: 32px;
             width: auto;
             filter: grayscale(20%);
             opacity: 0.9;
@@ -69,7 +70,7 @@
         .error-icon {
             position: absolute;
             right: 12px;
-            top: 50%;
+            top: 23px;
             transform: translateY(-50%);
             color: #d4111e;
             display: none; /* Hidden by default */
@@ -208,6 +209,12 @@
             font-size: 14px;
             color: #333;
         }
+
+        .btn-outline-secondary:hover {
+            background-color: #f8f9fa !important;
+            border-color: #333 !important;
+            color: #000 !important;
+        }
     </style>
 </head>
 <body>
@@ -239,18 +246,6 @@
 
                 <div class="card p-3">
                     <h5 class="mb-0">Your booking details</h5>
-                    <div class="row my-3">
-                        <div class="col-6">
-                            <small class="text-muted d-block">Check-in</small>
-                            <strong id="summary-checkin">Tue 13 Jan 2026</strong>
-                            <small class="text-muted d-block">15:00 – 21:00</small>
-                        </div>
-                        <div class="col-6 border-start">
-                            <small class="text-muted d-block">Check-out</small>
-                            <strong id="summary-checkout">Fri 23 Jan 2026</strong>
-                            <small class="text-muted d-block">09:00 – 11:00</small>
-                        </div>
-                    </div>
 
                     <div id="dynamic-rooms-list"></div>
 
@@ -265,7 +260,11 @@
                         </div>
                     </div>
                 </div>
-
+                <button type="button" class="btn btn-outline-secondary w-100 mt-3 py-2 fw-bold" 
+                        onclick="location.href='/booking'" 
+                        style="border: 1px solid #e4e4e4; color: #333; background: white;">
+                    <i class="fa-solid fa-chevron-left me-2"></i> Edit your selection
+                </button>
             </div>
 
             <div class="col-md-8">
@@ -302,13 +301,17 @@
                     
                     <div class="mt-4">
                         <label class="mb-2">Who are you booking for? (optional)</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="bookingFor" id="preferNotToSay" style="width: 1.2em; height: 1.2em; margin-top: 0.15em;">
+                            <label class="form-check-label ms-2 mt-0" for="someoneElse" style="font-weight: 400;">Prefer not to say</label>
+                        </div>
                         <div class="form-check mb-2">
                             <input class="form-check-input" type="radio" name="bookingFor" id="mainGuest" checked style="width: 1.2em; height: 1.2em; margin-top: 0.15em;">
                             <label class="form-check-label ms-2 mt-0" for="mainGuest" style="font-weight: 400;">I am the main guest</label>
                         </div>
                         <div class="form-check">
-                            <input class="form-check-input" type="radio" name="bookingFor" id="someoneElse" style="width: 1.2em; height: 1.2em; margin-top: 0.15em;">
-                            <label class="form-check-label ms-2 mt-0" for="someoneElse" style="font-weight: 400;">Booking is for someone else</label>
+                            <input class="form-check-input" type="radio" name="bookingFor" id="bookingForSomeoneElse" style="width: 1.2em; height: 1.2em; margin-top: 0.15em;">
+                            <label class="form-check-label ms-2 mt-0" for="someoneElse" style="font-weight: 400;">I am booking for someone else</label>
                         </div>
                     </div>
                 </div>
@@ -335,8 +338,8 @@
                             <div class="error-message" id="error-city">Please fill in your city</div>
                         </div>
                         <div class="col-md-6">
-                            <label>State / Province</label>
-                            <input type="text">
+                            <label>State / Province (optional)</label>
+                            <input type="text" id="state_province">
                         </div>
                     </div>
                     
@@ -354,22 +357,68 @@
                 </div>
 
                 <div class="card p-4 mt-3">
+                    <h5 class="mb-3">Payment Option</h5>
+                    <div class="card-icons">
+                        <img src="https://img.icons8.com/color/48/000000/mastercard.png" id="icon-mastercard" alt="Mastercard">
+                        <img src="https://img.icons8.com/color/48/000000/amex.png" id="icon-amex" alt="AMEX">
+                        <img src="https://img.icons8.com/color/48/000000/visa.png" id="icon-visa" alt="VISA">
+                    </div>
+
+                    <div class="mb-3">
+                        <label>Cardholder's Name *</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="card_name" placeholder="Name as on card" autocomplete="cc-name">
+                            <i class="fa-solid fa-circle-exclamation error-icon"></i>
+                        </div>
+                        <div class="error-message" id="error-card_name">Enter the cardholder's name</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label>Card Number *</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="card_number" placeholder="0000 0000 0000 0000" maxlength="23" autocomplete="cc-number">
+                            <i class="fa-solid fa-circle-exclamation error-icon"></i>
+                        </div>
+                        <div class="error-message" id="error-card_number">This card number is not valid.</div>
+                    </div>
+
+                    <div class="expiry-cvv-row">
+                        <div>
+                            <label>Expiry Date *</label>
+                            <div class="input-wrapper">
+                                <input type="text" id="expiry" placeholder="MM / YY" maxlength="7" autocomplete="cc-exp">
+                                <i class="fa-solid fa-circle-exclamation error-icon"></i>
+                            </div>
+                            <div class="error-message" id="error-expiry">Please enter a valid expiry date.</div>
+                        </div>
+                        <div>
+                            <label>CVC * <i class="fa-regular fa-circle-question cvv-help" title="3 or 4 digit code on the back"></i></label>
+                            <div class="input-wrapper">
+                                <input type="text" id="cvc" placeholder="000" maxlength="4" autocomplete="cc-csc">
+                                <i class="fa-solid fa-circle-exclamation error-icon"></i>
+                            </div>
+                            <div class="error-message" id="error-cvc">Please enter a valid CVV.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card p-4 mt-3">
                     <h5>Your arrival time</h5>
                     
-                    <div class="d-flex align-items-center gap-2 mb-3">
+                    <div class="d-flex align-items-center gap-2 mb-0">
                         <p class="small-text">You can check in between 3:00PM and 9:00PM</p>
                     </div>
 
                     <label class="mb-2">Add your estimated arrival time (optional)</label>
-                    <select class="form-select custom-input-style" style="cursor: pointer;">
+                    <select class="form-select custom-input-style" id="arrival_time" style="cursor: pointer;">
                         <option value="" selected>Please select</option>
-                        <option value="15-16">3:00PM - 4:00PM</option>
-                        <option value="16-17">4:00PM - 5:00PM</option>
-                        <option value="17-18">5:00PM - 6:00PM</option>
-                        <option value="18-19">6:00PM - 7:00PM</option>
-                        <option value="19-20">7:00PM - 8:00PM</option>
-                        <option value="20-21">8:00PM - 9:00PM</option>
-                        <option value="not-sure">I don't know</option>
+                        <option value="3:00PM - 4:00PM">3:00PM - 4:00PM</option>
+                        <option value="4:00PM - 5:00PM">4:00PM - 5:00PM</option>
+                        <option value="5:00PM - 6:00PM">5:00PM - 6:00PM</option>
+                        <option value="6:00PM - 7:00PM">6:00PM - 7:00PM</option>
+                        <option value="7:00PM - 8:00PM">7:00PM - 8:00PM</option>
+                        <option value="8:00PM - 9:00PM">8:00PM - 9:00PM</option>
+                        <option value="I don't know">I don't know</option>
                     </select>
                     <p class="small-text mt-2">The property will do its best to have your room ready when you arrive.</p>
                 </div>
@@ -378,7 +427,7 @@
                     <h5>Special requests</h5>
                     <p class="small-text">Special requests cannot be guaranteed – but the property will do its best to meet your needs. You can always make a special request after your booking is complete!</p>  
                     <p class="small-text">Please write your requests in English or French. (optional)</p>  
-                    <textarea rows="4" placeholder="Optional requests..."></textarea>
+                    <textarea rows="4" id="special_requests" placeholder="Optional requests..."></textarea>
                 </div>
 
                 <div class="text-end mt-4 mb-5">
@@ -390,212 +439,337 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // 1. Retrieve data from the previous page
+            // 1. Retrieve data from the previous page (UNCHANGED)
             const cartData = JSON.parse(localStorage.getItem('bookingCart')) || [];
-            const checkin = localStorage.getItem('checkinDate') || "Tue 13 Jan 2026";
-            const checkout = localStorage.getItem('checkoutDate') || "Fri 23 Jan 2026";
-            const guests = localStorage.getItem('guestSummary') || "2 Adults";
 
-            // Update the Dates at the top
-            document.getElementById('summary-checkin').innerText = checkin;
-            document.getElementById('summary-checkout').innerText = checkout;
+            // Redirect if the cart is empty to prevent booking errors
+            if (cartData.length === 0) {
+                window.location.href = '/booking';
+                return;
+            }
 
             const roomContainer = document.getElementById('dynamic-rooms-list');
             let grandTotal = 0;
 
-            // 2. Logic: Loop through the actual rooms chosen by the user
             if (cartData.length > 0) {
-                roomContainer.innerHTML = ''; // Clear placeholders
+                roomContainer.innerHTML = ''; 
                 cartData.forEach((room, index) => {
-                    // MATH: Calculate the specific taxes requested
-                    const gst = room.price * 0.05; // 5% Canada GST
-                    const tourismLevy = room.price * 0.04; // 4% Alberta Tourism Levy
+                    const gst = room.price * 0.05;
+                    const tourismLevy = room.price * 0.04;
                     const roomTotalTaxes = gst + tourismLevy;
+                    const pricePerNight = room.price / room.nights;
                     grandTotal += (room.price + roomTotalTaxes);
+
+                    // Logic for Guest String: Handles Adults, and optionally Children and Pets
+                    let guestParts = [];
+                    if (room.adults > 0) guestParts.push(`${room.adults} ${room.adults === 1 ? 'Adult' : 'Adults'}`);
+                    if (room.children > 0) guestParts.push(`${room.children} ${room.children === 1 ? 'Child' : 'Children'}`);
+                    if (room.pets > 0) guestParts.push(`${room.pets} ${room.pets === 1 ? 'Pet' : 'Pets'}`);
+                    const guestString = guestParts.join(', ');
 
                     roomContainer.innerHTML += `
                         <div class="py-3 border-top">
-                            <div class="d-flex justify-content-between align-items-start">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
                                 <div>
-                                    <strong style="text-transform: uppercase;">Room ${index + 1}</strong><br>
-                                    <span class="small fw-bold">${room.name}</span><br>
-                                    <span class="small border-bottom border-dark clickable-trigger" onclick="toggleDrawer('room${index}-nights')">${room.nights} Nights stay</span>
+                                    <strong style="text-transform: uppercase; color: #006ce4;">Room ${index + 1}</strong><br>
+                                    <span class="fw-bold">${room.name}</span>
                                 </div>
                                 <div class="text-end small fw-bold">CAD ${room.price.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
                             </div>
 
+                            <div class="row g-0 mb-2 small">
+                                <div class="col-5">
+                                    <span class="text-muted d-block" style="font-size: 11px;">Check-in</span>
+                                    <strong>${room.checkin}</strong>
+                                </div>
+                                <div class="col-2 text-center align-self-end">
+                                    <span class="badge bg-light text-dark border" style="font-weight:normal;">
+                                        ${room.nights} ${room.nights === 1 ? 'night' : 'nights'}
+                                    </span>
+                                </div>
+                                <div class="col-5 text-end">
+                                    <span class="text-muted d-block" style="font-size: 11px;">Check-out</span>
+                                    <strong>${room.checkout}</strong>
+                                </div>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="small border-bottom border-dark clickable-trigger" onclick="toggleDrawer('room${index}-nights')">Base Price Breakdown</span>
+                                <span class="small text-muted">${guestString}</span>
+                            </div>
+
                             <div id="room${index}-nights" class="breakdown-drawer">
-                                <div class="breakdown-row"><span>Base stay cost</span><span>CAD ${room.price.toFixed(2)}</span></div>
+                                <div class="breakdown-row">
+                                    <span>${room.nights} nights x CAD ${pricePerNight.toFixed(2)}</span>
+                                    <span>CAD ${room.price.toFixed(2)}</span>
+                                </div>
                             </div>
 
                             <div class="d-flex justify-content-between mt-1">
                                 <span class="small border-bottom border-dark clickable-trigger" onclick="toggleDrawer('room${index}-taxes')">Taxes and fees</span>
                                 <span class="small">CAD ${roomTotalTaxes.toFixed(2)}</span>
                             </div>
-
+                            
                             <div id="room${index}-taxes" class="breakdown-drawer">
-                                <div class="breakdown-row"><span>5% Goods and Services Tax (GST)</span><span>CAD ${gst.toFixed(2)}</span></div>
-                                <div class="breakdown-row"><span>4% Alberta Tourism Levy</span><span>CAD ${tourismLevy.toFixed(2)}</span></div>
+                                <div class="breakdown-row"><span>5% GST</span><span>CAD ${gst.toFixed(2)}</span></div>
+                                <div class="breakdown-row"><span>4% Tourism Levy</span><span>CAD ${tourismLevy.toFixed(2)}</span></div>
                             </div>
-
-                            <p class="small text-muted mt-2 mb-0">${guests}</p>
-                        </div>
-                    `;
+                        </div>`;
                 });
-            } else {
-                // Fallback placeholder if cart is empty so you can still see the design
-                roomContainer.innerHTML = '<p class="text-muted small py-3">No rooms selected. Please go back to select a room.</p>';
             }
 
             document.getElementById('summary-grand-total').innerText = `CAD ${grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            sessionStorage.setItem('booking_amount', grandTotal.toFixed(2));
+
+            // Country & Phone Init (UNCHANGED)
+            const countryInput = document.querySelector("#country-select");
+            const itiCountry = window.intlTelInput(countryInput, {
+                initialCountry: "ca",
+                countrySearch: true,
+                allowDropdown: true,
+                placeholderNumberType: "NONE", 
+            });
+            const updateCountryName = () => { countryInput.value = itiCountry.getSelectedCountryData().name; };
+            updateCountryName();
+            countryInput.addEventListener('countrychange', updateCountryName);
+            countryInput.addEventListener('keydown', (e) => e.preventDefault());
+
+            const phoneInput = document.querySelector("#phone");
+            window.intlTelInput(phoneInput, {
+                initialCountry: "ca",
+                separateDialCode: true,
+                countrySearch: true,
+                utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@25.1.0/build/js/utils.js",
+            });
         });
 
         function toggleDrawer(drawerId) {
             const drawer = document.getElementById(drawerId);
-            if (drawer) {
-                const isVisible = (drawer.style.display === "block");
-                drawer.style.display = isVisible ? "none" : "block";
-            }
+            if (drawer) drawer.style.display = (drawer.style.display === "block") ? "none" : "block";
         }
-        
-        function validateForm() {
-            const fields = [
-                { id: 'first_name', name: 'first name' },
-                { id: 'last_name', name: 'last name' },
-                { id: 'email', name: 'email address', isEmail: true },
-                { id: 'address', name: 'address' },
-                { id: 'city', name: 'city' },
-                { id: 'phone', name: 'phone number', isPhone: true },
-                { id: 'card_name', name: "cardholder's name" },
-                { id: 'card_number', name: 'card number', isCard: true },
-                { id: 'expiry', name: 'expiry date', isExpiry: true },
-                { id: 'cvc', name: 'security code', isCvc: true }
-            ];
 
-            let firstErrorField = null;
+        // --- Helper: Brand Detection & Icon Update (NEW) ---
+        function detectCardBrand(number) {
+            const n = number.replace(/\s+/g, ''); // Strip spaces
+            if (!n) return '';
 
-            fields.forEach(field => {
-                const input = document.getElementById(field.id);
-                const errorMsg = document.getElementById(`error-${field.id}`);
-                const errorIcon = input.parentElement.querySelector('.error-icon');
-                const value = input.value.trim();
-                let isValid = true;
-                let message = `Please fill in your ${field.name}`;
+            // 1. Visa: Starts with 4
+            if (/^4/.test(n)) return 'Visa';
 
-                if (value === "") {
-                    isValid = false;
-                } else if (field.isEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-                    isValid = false;
-                } else if (field.isCard && value.replace(/\s/g, '').length < 13) {
-                    isValid = false; // Basic length check for valid cards
-                } else if (field.isExpiry) {
-                    // Logic: Matches exactly "01 / 26" format
-                    const expiryPattern = /^\d{2} \/ \d{2}$/;
-                    if (!expiryPattern.test(value)) {
-                        isValid = false;
-                        message = "Your card must have a valid expiry date";
-                    } else {
-                        // Extra Real-Life Logic: Check if month is valid (01-12)
-                        const month = parseInt(value.substring(0, 2));
-                        if (month < 1 || month > 12) {
-                            isValid = false;
-                            message = "Please enter a valid month (01-12)";
-                        }
-                    }
-                } else if (field.isCvc && (value.length < 3 || value.length > 4)) {
-                    isValid = false;
-                }
+            // 2. Mastercard: 51-55 OR 2221-2720
+            const firstTwo = parseInt(n.substring(0, 2), 10);
+            const firstFour = parseInt(n.substring(0, 4), 10);
 
-                if (!isValid) {
-                    input.classList.add('is-invalid');
-                    errorMsg.style.display = 'block';
-                    if (errorIcon) errorIcon.style.display = 'block';
-                    if (!firstErrorField) firstErrorField = input;
+            if ((firstTwo >= 51 && firstTwo <= 55) || (firstFour >= 2221 && firstFour <= 2720)) {
+                return 'MasterCard';
+            }
+
+            // 3. AMEX: 34 or 37
+            if (/^3[47]/.test(n)) return 'AMEX';
+
+            return '';
+        }
+
+        function updateCardIcons(brand) {
+            document.querySelectorAll('.card-icons img').forEach(img => img.style.filter = 'grayscale(100%)');
+            if (brand === 'Visa') document.getElementById('icon-visa').style.filter = 'none';
+            if (brand === 'MasterCard') document.getElementById('icon-mastercard').style.filter = 'none';
+            if (brand === 'AMEX') document.getElementById('icon-amex').style.filter = 'none';
+        }
+
+        // --- Card Input Listener (UPDATED FOR CUSTOM FORMATTING) ---
+        document.getElementById('card_number').addEventListener('input', function(e) {
+            let val = e.target.value.replace(/\D/g, '');
+            const brand = detectCardBrand(val);
+            const cvcInput = document.getElementById('cvc');
+            updateCardIcons(brand);
+
+            if (brand === 'Visa') {
+                if (val.length <= 13) {
+                    // Visa 13: XXXX XXXXX XXX
+                    e.target.value = val.replace(/^(\d{4})(\d{5})?(\d{4})?/, function(m, p1, p2, p3) {
+                        let res = p1;
+                        if (p2) res += ' ' + p2;
+                        if (p3) res += ' ' + p3;
+                        return res;
+                    });
                 } else {
-                    input.classList.remove('is-invalid');
-                    errorMsg.style.display = 'none';
-                    if (errorIcon) errorIcon.style.display = 'none';
+                    // Visa 16/19: Standard groups of 4 + 3-digit tail
+                    e.target.value = val.replace(/(.{4})/g, '$1 ').trim();
                 }
+                cvcInput.placeholder = "000";
+                cvcInput.maxLength = 3;
+            } else if (brand === 'AMEX') {
+                // AMEX 15: XXXX XXXXXX XXXXX
+                e.target.value = val.replace(/^(\d{4})(\d{6})?(\d{5})?/, function(m, p1, p2, p3) {
+                    let res = p1;
+                    if (p2) res += ' ' + p2;
+                    if (p3) res += ' ' + p3;
+                    return res;
+                });
+                cvcInput.placeholder = "0000";
+                cvcInput.maxLength = 4;
+            } else {
+                // Default / Mastercard: XXXX XXXX XXXX XXXX
+                e.target.value = val.replace(/(.{4})/g, '$1 ').trim();
+                cvcInput.placeholder = "000";
+                cvcInput.maxLength = 3;
+            }
+        });
+
+        // --- Smart Expiry Input Listener (UPDATED) ---
+        document.getElementById('expiry').addEventListener('input', function(e) {
+            let input = e.target.value.replace(/\D/g, '');
+            // Prefix 0 if starts with 2-9
+            if (input.length === 1 && input > 1 && input <= 9) { input = '0' + input; }
+            if (input.length >= 2) {
+                e.target.value = input.substring(0, 2) + ' / ' + input.substring(2, 4);
+            } else {
+                e.target.value = input;
+            }
+        });
+
+        document.getElementById('expiry').addEventListener('keydown', function(e) {
+            if (e.key === 'Backspace' && this.value.length === 5) this.value = this.value.substring(0, 2);
+        });
+
+        // --- Error Display Helpers (UPDATED) ---
+        function showError(input, message) {
+            const wrapper = input.closest('.input-wrapper');
+            const errorMsg = wrapper.nextElementSibling; // Targets the red text div
+            input.classList.add('is-invalid');
+            if (errorMsg && errorMsg.classList.contains('error-message')) {
+                errorMsg.innerText = message;
+                errorMsg.style.display = 'block';
+            }
+            const icon = wrapper.querySelector('.error-icon');
+            if (icon) icon.style.display = 'block';
+        }
+
+        function clearError(input) {
+            const wrapper = input.closest('.input-wrapper');
+            const errorMsg = wrapper.nextElementSibling;
+            input.classList.remove('is-invalid');
+            if (errorMsg && errorMsg.classList.contains('error-message')) errorMsg.style.display = 'none';
+            const icon = wrapper.querySelector('.error-icon');
+            if (icon) icon.style.display = 'none';
+        }
+
+        // --- Main Validation Logic (UPDATED TO ALLOW VISA 19) ---
+        function validateForm() {
+            let isFormValid = true;
+
+            const cardName = document.getElementById('card_name');
+            if (!cardName.value.trim()) { showError(cardName, "Enter the cardholder's name"); isFormValid = false; } else clearError(cardName);
+
+            const cardNumber = document.getElementById('card_number');
+            const rawCard = cardNumber.value.replace(/\s+/g, '');
+            const brand = detectCardBrand(rawCard);
+            
+            if (!rawCard || !/^\d+$/.test(rawCard) || !brand) {
+                showError(cardNumber, "This card number is not valid.");
+                isFormValid = false;
+            } else {
+                const len = rawCard.length;
+                // Updated lenValid to include 19 for Visa
+                let lenValid = (brand === 'Visa' && [13, 16, 19].includes(len)) || 
+                            (brand === 'MasterCard' && len === 16) || 
+                            (brand === 'AMEX' && len === 15);
+                if (!lenValid) { showError(cardNumber, "This card number is not valid."); isFormValid = false; } else clearError(cardNumber);
+            }
+
+            const expiry = document.getElementById('expiry');
+            const expClean = expiry.value.replace(/\D/g, '');
+            if (!expiry.value.trim()) {
+                showError(expiry, "Please input a valid expiry date.");
+                isFormValid = false;
+            } else if (expClean.length < 4) {
+                showError(expiry, "Please enter a valid expiry date.");
+                isFormValid = false;
+            } else {
+                const month = parseInt(expClean.substring(0, 2));
+                const year = parseInt("20" + expClean.substring(2, 4));
+                const now = new Date();
+                if (month < 1 || month > 12 || year > (now.getFullYear() + 20)) {
+                    showError(expiry, "Please enter a valid expiry date.");
+                    isFormValid = false;
+                } else if (new Date(year, month - 1, 1) < new Date(now.getFullYear(), now.getMonth(), 1)) {
+                    showError(expiry, "Expiry date cannot be in the past.");
+                    isFormValid = false;
+                } else clearError(expiry);
+            }
+
+            const cvc = document.getElementById('cvc');
+            const cvcVal = cvc.value.trim();
+            if (!cvcVal || !/^\d+$/.test(cvcVal) || cvcVal.length < 3) {
+                showError(cvc, "Please enter a valid CVV.");
+                isFormValid = false;
+            } else if (brand === 'AMEX' && cvcVal.length !== 4) {
+                showError(cvc, "Please enter a valid CVV.");
+                isFormValid = false;
+            } else if ((brand === 'Visa' || brand === 'MasterCard') && cvcVal.length !== 3) {
+                showError(cvc, "Please enter a valid CVV.");
+                isFormValid = false;
+            } else clearError(cvc);
+
+            ['first_name', 'last_name', 'email', 'phone', 'address', 'city'].forEach(id => {
+                const el = document.getElementById(id);
+                if (!el || !el.value.trim()) { 
+                    if(el) showError(el, `Please fill in your ${id.replace('_',' ')}`); 
+                    isFormValid = false; 
+                } else clearError(el);
             });
 
-            if (firstErrorField) {
-                firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                firstErrorField.focus();
-            } else {
-                location.href = '/final_details'; 
-            }
-        }
+            if (isFormValid) {
+                // Guest Details
+                sessionStorage.setItem('guest_name', document.getElementById('first_name').value + ' ' + document.getElementById('last_name').value);
+                sessionStorage.setItem('guest_email', document.getElementById('email').value);
+                sessionStorage.setItem('guest_phone', document.getElementById('phone').value);
+                sessionStorage.setItem('guest_address', document.getElementById('address').value);
+                sessionStorage.setItem('review_city', document.getElementById('city').value);
+                sessionStorage.setItem('review_country', document.querySelector("#country-select").value);
+                
+                // State/Province
+                const stateVal = document.getElementById('state_province').value.trim();
+                sessionStorage.setItem('guest_state', stateVal !== "" ? stateVal : "N/A");
 
-        // 1. Country Selector Initialization
-        const countryInput = document.querySelector("#country-select");
-        const itiCountry = window.intlTelInput(countryInput, {
-            initialCountry: "ca",
-            countrySearch: true, // Enables the search bar seen in your video
-            showSelectedDialCode: false, // Don't show +1 for a country name field
-            allowDropdown: true,
-            // This tells the library NOT to format as a phone number
-            placeholderNumberType: "NONE", 
-        });
+                // Special Requests
+                const requestVal = document.getElementById('special_requests').value.trim();
+                sessionStorage.setItem('special_requests', requestVal !== "" ? requestVal : "N/A");
 
-        // Logic to update the text field with the NAME of the country, not a number
-        const updateCountryName = () => {
-            const countryData = itiCountry.getSelectedCountryData();
-            countryInput.value = countryData.name;
-        };
+                // Arrival Time
+                const arrivalEl = document.getElementById('arrival_time');
+                // Ensure we don't just save an empty string if the user didn't select
+                sessionStorage.setItem('arrival_time', (arrivalEl.value && arrivalEl.value !== "") ? arrivalEl.value : "Not selected");
 
-        // Update on initial load and whenever the user clicks a new country
-        updateCountryName();
-        countryInput.addEventListener('countrychange', updateCountryName);
-
-        // Prevent users from manually typing in the box (forces them to use the dropdown)
-        countryInput.addEventListener('keydown', (e) => e.preventDefault());
-
-        // 2. Phone Number Initialization
-        const phoneInput = document.querySelector("#phone");
-        const itiPhone = window.intlTelInput(phoneInput, {
-            initialCountry: "ca",
-            separateDialCode: true, // This puts the +1 outside the typing area
-            countrySearch: true,
-            // This allows the library to automatically format the number as the user types
-            utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@25.1.0/build/js/utils.js",
-        });
-
-        /* Logic Step: The library sometimes fails to push the text far enough 
-        if the dial code is long (e.g., +255). This listener ensures that 
-        whenever the country changes, we adjust the padding if needed.
-        */
-        phoneInput.addEventListener("countrychange", function() {
-            // Optional: You can dynamically adjust padding-left here if 95px is too much/little
-        });
-
-        // Auto-format Card Number (Spaces every 4 digits)
-        document.getElementById('card_number').addEventListener('input', function (e) {
-            e.target.value = e.target.value.replace(/[^\d]/g, '').replace(/(.{4})/g, '$1 ').trim();
-        });
-
-        // Auto-format Expiry Date (Allows typing after slash)
-        document.getElementById('expiry').addEventListener('input', function (e) {
-            // Remove all non-digits
-            let v = e.target.value.replace(/\D/g, '');
-            
-            // If user types '12', turn it into '12 / '
-            if (v.length > 2) {
-                e.target.value = v.substring(0, 2) + ' / ' + v.substring(2, 4);
-            } else {
-                e.target.value = v;
-            }
-        });
-
-        // Handle 'Backspace' specifically so the user can delete the slash easily
-        document.getElementById('expiry').addEventListener('keydown', function(e) {
-            if (e.key === 'Backspace') {
-                const value = this.value;
-                // If cursor is right after the " / ", jump back to the numbers
-                if (value.length === 5) {
-                    this.value = value.substring(0, 2);
+                // Capture Radio Button
+                const selectedRadio = document.querySelector('input[name="bookingFor"]:checked');
+                let bookingForValue = "I am the main guest"; // Default value
+                if (selectedRadio && selectedRadio.nextElementSibling) {
+                    bookingForValue = selectedRadio.nextElementSibling.innerText.trim();
                 }
+                sessionStorage.setItem('booking_for', bookingForValue);
+
+                // Card Details
+                sessionStorage.setItem('card_brand', brand);
+                sessionStorage.setItem('card_last4', rawCard.slice(-4));
+                sessionStorage.setItem('card_expiry', document.getElementById('expiry').value);
+
+                // Room Details
+                const cartData = JSON.parse(localStorage.getItem('bookingCart')) || [];
+                if (cartData.length > 0) {
+                    sessionStorage.setItem('room_name', cartData[0].name);
+                    sessionStorage.setItem('check_in', localStorage.getItem('checkinDate'));
+                    sessionStorage.setItem('check_out', localStorage.getItem('checkoutDate'));
+                    sessionStorage.setItem('guests_summary', localStorage.getItem('guestSummary'));
+                }
+                
+                // Final Redirect
+                window.location.href = '/final_details';
             }
-        });
+            
+        }
     </script>
+    <script src="/static/assets/js/enhancements.js"></script>
 </body>
 </html>
