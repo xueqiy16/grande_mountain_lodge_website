@@ -34,18 +34,20 @@ function showSlides(n, containerId) {
     if (!slideIndices[containerId]) slideIndices[containerId] = 1;
     if (n > slides.length) {slideIndices[containerId] = 1}
     if (n < 1) {slideIndices[containerId] = slides.length}
-    
+
+    const current = slideIndices[containerId] - 1; // 0-based active index
+
+    // Smoothly slide each image into place via translateX
     for (i = 0; i < slides.length; i++) {
-        slides[i].style.display = "none";
+        slides[i].style.transform = `translateX(${(i - current) * 100}%)`;
     }
-    
+
     for (i = 0; i < dots.length; i++) {
         dots[i].className = dots[i].className.replace(" active-dot", "");
     }
-    
-    slides[slideIndices[containerId] - 1].style.display = "block";
+
     if (dots.length > 0) {
-        dots[slideIndices[containerId] - 1].className += " active-dot";
+        dots[current].className += " active-dot";
     }
 }
 
@@ -129,7 +131,7 @@ document.addEventListener("DOMContentLoaded", function() {
                             <br><i class="fa-solid fa-toilet-paper"></i> Ensuite Bathroom
                         <ul class="actions">
                             <li><a href="/booking" class="button">Check Availability</a></li>
-                            <li><a href="javascript:void(0)" class="view-amenities" onclick="openModal('modal-standard')">Detailed Amenities <span class="icon solid fa-chevron-down"></span></a></li>
+                            <li><a href="javascript:void(0)" class="button view-amenities" onclick="openModal('modal-standard')">Detailed Amenities</a></li>
                         </ul>
                     </div>
                 </div>
@@ -169,7 +171,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         <br><i class="fa-solid fa-toilet-paper"></i> Ensuite Bathroom</p>
                         <ul class="actions">
                             <li><a href="/booking" class="button">Check Availability</a></li>
-                            <li><a href="javascript:void(0)" class="view-amenities" onclick="openModal('modal-studio')">Detailed Amenities <span class="icon solid fa-chevron-down"></span></a></li>
+                            <li><a href="javascript:void(0)" class="button view-amenities" onclick="openModal('modal-studio')">Detailed Amenities</a></li>
                         </ul>
                     </div>
                 </div>
@@ -208,7 +210,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         <br><i class="fa-solid fa-toilet-paper"></i> Ensuite Bathroom</p>
                       <ul class="actions">
                           <li><a href="/booking" class="button">Check Availability</a></li>
-                          <li><a href="javascript:void(0)" class="view-amenities" onclick="openModal('modal-studio')">Detailed Amenities <span class="icon solid fa-chevron-down"></span></a></li>
+                          <li><a href="javascript:void(0)" class="button view-amenities" onclick="openModal('modal-studio')">Detailed Amenities</a></li>
                       </ul>
                   </div>
                 </div>
@@ -251,7 +253,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         <br><i class="fa-solid fa-toilet-paper"></i> Ensuite Bathroom</p>
                         <ul class="actions">
                             <li><a href="/booking" class="button">Check Availability</a></li>
-                            <li><a href="javascript:void(0)" class="view-amenities" onclick="openModal('modal-suite')">Detailed Amenities <span class="icon solid fa-chevron-down"></span></a></li>
+                            <li><a href="javascript:void(0)" class="button view-amenities" onclick="openModal('modal-suite')">Detailed Amenities</a></li>
                         </ul>
                     </div>
                 </div>
@@ -291,7 +293,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         <br><i class="fa-solid fa-toilet-paper"></i> Ensuite Bathroom with Bathtub and Shower</p>
                         <ul class="actions">
                             <li><a href="/booking" class="button">Check Availability</a></li>
-                            <li><a href="javascript:void(0)" class="view-amenities" onclick="openModal('modal-suite')">Detailed Amenities <span class="icon solid fa-chevron-down"></span></a></li>
+                            <li><a href="javascript:void(0)" class="button view-amenities" onclick="openModal('modal-suite')">Detailed Amenities</a></li>
                         </ul>
                     </div>
                 </div>

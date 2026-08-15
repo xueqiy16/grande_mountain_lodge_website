@@ -492,17 +492,6 @@ def availability():
 # ---------------------------------------------------------------------------
 # BOOKING PERSISTENCE (Supabase, with SQLite fallback)
 # ---------------------------------------------------------------------------
-def _parse_expiry(s):
-    """'MM / YY' (or similar) -> (month:int, year:int) e.g. (12, 2029)."""
-    digits = ''.join(ch for ch in str(s or '') if ch.isdigit())
-    if len(digits) < 4:
-        return None, None
-    try:
-        return int(digits[:2]), 2000 + int(digits[2:4])
-    except ValueError:
-        return None, None
-
-
 def _upsert_guest(guest):
     """Find a guest by email (update) or insert a new one. Returns guest_id."""
     email = (guest.get("email") or "").strip()
@@ -550,8 +539,8 @@ def _available_room_ids(code, check_in, check_out):
     return [i for i in ids if i not in busy_ids]
 
 
-def _persist_booking(check_in, check_out, result, rooms_req, guest, card,
-                     special_requests, booking_ref, token):
+def _persist_booking(check_in, check_out, result, rooms_req, guest,
+                     special_requests, booking_ref):
     """Write one bookings row per reserved room. Server-computed prices only.
     Returns {"ok": bool, "error"?: str}."""
     ci, co = check_in.isoformat(), check_out.isoformat()
@@ -560,12 +549,6 @@ def _persist_booking(check_in, check_out, result, rooms_req, guest, card,
     if supabase:
         try:
             guest_id = _upsert_guest(guest)
-            exp_month, exp_year = _parse_expiry(card.get("expiry"))
-            brand = (card.get("brand") or "").strip().lower() or None
-            last4 = (card.get("last4") or "").strip()[-4:] or None
-            cardholder = (card.get("cardholder_name")
-                          or f"{guest.get('first_name', '')} {guest.get('last_name', '')}".strip()
-                          or None)
             note = (special_requests or "").strip()[:1000] or None
 
             for idx, vr in enumerate(result["rooms"]):
@@ -586,15 +569,9 @@ def _persist_booking(check_in, check_out, result, rooms_req, guest, card,
                     "children": _to_non_negative_int((req or {}).get("children")) or 0,
                     "pets": _to_non_negative_int((req or {}).get("pets")) or 0,
                     "booking_status": "confirmed",
-                    "moneris_token": token,
-                    "guarantee_method": brand,
-                    "last4": last4,
-                    "expiry_month": exp_month,
-                    "expiry_year": exp_year,
                     "amount_paid": 0.0,          # no upfront payment
                     "total_nights": nights,
                     "total_price": line_grand,
-                    "card_holder_name": cardholder,
                     "booking_reference": booking_ref,
                     "booking_notes": note,
                 }).execute()
@@ -627,8 +604,8 @@ def _persist_booking(check_in, check_out, result, rooms_req, guest, card,
 @app.route('/api/complete-booking', methods=['POST'])
 def handle_booking():
     """Finalize a reservation. Re-runs itinerary verification (inventory +
-    server re-pricing) immediately before storing the booking and moneris
-    token to Supabase. Client-submitted totals are never trusted or stored."""
+    server re-pricing) immediately before storing the booking to Supabase.
+    Client-submitted totals are never trusted or stored."""
     data = request.get_json(silent=True)
 
     # Legacy single-room HTML form fallback (kept for backwards compatibility)
@@ -644,13 +621,12 @@ def handle_booking():
     if not result.get("valid"):
         return jsonify({"success": False, "error": result.get("error")}), status
 
-    # 2. Persist with a freshly generated booking reference + moneris token
+    # 2. Persist with a freshly generated booking reference
     booking_ref = "BK-" + secrets.token_hex(3).upper()
-    token = "RES-" + secrets.token_hex(4).upper()
     persisted = _persist_booking(
         check_in, check_out, result, rooms_req,
-        data.get('guest') or {}, data.get('card') or {},
-        data.get('special_requests'), booking_ref, token)
+        data.get('guest') or {},
+        data.get('special_requests'), booking_ref)
 
     if not persisted.get("ok"):
         return jsonify({"success": False,
@@ -694,10 +670,9 @@ def _legacy_form_booking():
         return f"<h3>Error: {result.get('error')}</h3>", status
 
     booking_ref = "BK-" + secrets.token_hex(3).upper()
-    token = "RES-" + secrets.token_hex(4).upper()
     _persist_booking(start_date, end_date, result,
                      [{"name": room, "adults": adults, "children": kids, "pets": pets}],
-                     {}, {}, None, booking_ref, token)
+                     {}, None, booking_ref)
 
     return f"""
     <h1>Booking Saved!</h1>

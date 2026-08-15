@@ -647,6 +647,73 @@ a:not(.button):hover {
     border-bottom-color: #e44c65;
 }
 
+/* Header navigation tab hover color (Rooms, Bookings, and other pages) */
+#header #nav a.white,
+.banner-inner #nav a {
+    transition: color 0.2s ease;
+}
+#header #nav a.white:hover,
+.banner-inner #nav a:hover {
+    color: #ff5778 !important;
+}
+
+/* Rooms page: default nav links solid black */
+.rooms-page #header #nav a.white {
+    color: #000000 !important;
+}
+
+/* Rooms page hover must beat the black default (equal specificity + later source
+   order was overriding it), so scope the hover with .rooms-page for higher weight.
+   The BOOK NOW button (a.button.primary) is excluded via :not(.button). */
+.rooms-page #header #nav a.white:hover,
+.rooms-page #header #nav a:not(.button):hover,
+#header nav a:not(.button):hover,
+.banner-inner #nav a:not(.button):hover,
+.nav-menu a:not(.button):hover,
+nav a:not(.button):hover {
+    color: #ff5778 !important;
+    transition: color 0.3s ease;
+}
+
+/* BOOK NOW button: text stays white in every state; only the background
+   changes to #D63683 on hover (no pink text, no motion). */
+#header #nav a.button.primary,
+#header #nav a.button.primary:hover,
+.banner-inner .book-now-btn,
+.banner-inner .book-now-btn:hover,
+a.button.primary.book-now-btn,
+a.button.primary.book-now-btn:hover {
+    color: #ffffff !important;
+}
+#header #nav a.button.primary:hover,
+.banner-inner .book-now-btn:hover,
+a.button.primary.book-now-btn:hover {
+    background-color: #D63683 !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* FAQ: keep the button box completely static (no scale/shrink/pop);
+   only the background/text color changes on hover/active. */
+.faq-question,
+.faq-question:hover,
+.faq-question:focus,
+.faq-question:active,
+.faq-question.active {
+    transform: none !important;
+    transition: background-color 0.2s ease, color 0.2s ease !important;
+}
+
+/* Home/landing pages: primary buttons (BOOK NOW, View on Map) —
+   color-only hover with no lift/scale/shadow pop. */
+.landing a.button.primary:hover,
+.landing a.button.primary:focus,
+.landing a.button.primary:active {
+    background-color: #D63683 !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
 /* ============================================
    SCROLL TOGGLE ICON ENHANCEMENTS
    ============================================ */

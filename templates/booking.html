@@ -17,16 +17,16 @@
             padding: 0;
             width: 100%;
             min-height: 100%;
-            background: #ffffff;
+            background: #f4f5f7;
         }
         .fa-solid, .fas { font-weight: 900 !important; }
-        body { background: #ffffff; color: #333; font-family: 'Inter', sans-serif; }
+        body { background: #f4f5f7; color: #333; font-family: 'Inter', sans-serif; }
         
         /* Layout */
         .booking-container { max-width: 1200px; margin: 75px auto; padding: 20px; }
-        .main-content { display: flex; gap: 30px; margin-top: 30px; }
-        .rooms-column { flex: 8; }
-        .cart-column { flex: 4; }
+        .main-content { display: flex; gap: 30px; margin-top: 30px; position: relative; }
+        .rooms-column { flex: 8; position: relative; z-index: 2; }
+        .cart-column { flex: 4; position: relative; z-index: 1; }
 
         /* Search Bar Enhancements - Corrected Alignment */
         .search-summary {
@@ -114,18 +114,102 @@
         /* Room Cards */
         .room-card { 
             background: white; border-radius: 15px; overflow: hidden; display: flex; 
-            margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); height: 360px;
+            margin-bottom: 20px; border: 1px solid #e0e0e0; height: 360px;
         }
         .room-image { width: 40%; background-size: cover; background-position: center; position: relative; }
-        .room-details { width: 60%; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; }
+        .room-details { width: 60%; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; min-height: 0; }
+        /* Description area scrolls within the fixed card height; the price/Book row stays pinned */
+        .room-details > div:first-child {
+            flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 6px;
+            scrollbar-width: thin; scrollbar-color: #c5c9d0 transparent;
+        }
+        .room-details > div:first-child::-webkit-scrollbar { width: 6px; }
+        .room-details > div:first-child::-webkit-scrollbar-thumb { background: #c5c9d0; border-radius: 6px; }
+        .room-details > div:last-child { flex: 0 0 auto; padding-top: 10px; }
         .room-title { font-size: 1.2rem; font-weight: 700; color: #111; }
         .price { font-size: 1.3rem; font-weight: bold; }
-        .book-btn { background: #000; color: #fff; border: none; padding: 8px 25px; border-radius: 8px; cursor: pointer; }
+        .book-btn { background: #ff5778; color: #fff; border: none; padding: 8px 25px; border-radius: 8px; cursor: pointer; transition: background 0.2s ease; }
+        .book-btn:hover, .book-btn:focus { background: #e83e63; color: #fff; outline: none; }
 
         /* Sidebar Cart */
-        .cart-card { background: white; border-radius: 15px; padding: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); position: sticky; top: 100px; }
-        .cart-item { border-bottom: 1px solid #eee; padding: 15px 0; }
-        .reserve-btn { background: #1a2b48; color: white; width: 100%; border: none; padding: 15px; border-radius: 8px; font-weight: bold; margin-top: 20px; }
+        .cart-card {
+            background: white; border-radius: 15px; padding: 25px; border: 1px solid #e0e0e0;
+            position: sticky; top: 20px;
+            max-height: calc(100vh - 40px);    /* equal ~20px top & bottom gaps */
+            overflow-y: auto;                   /* independent internal scrolling */
+            scrollbar-width: thin;              /* Firefox */
+            scrollbar-color: #d1d5db transparent;
+        }
+        /* Refined custom scrollbar for the reservations card (WebKit) */
+        .cart-card::-webkit-scrollbar { width: 8px; }
+        .cart-card::-webkit-scrollbar-track { background: transparent; }
+        .cart-card::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 8px; }
+        .cart-card::-webkit-scrollbar-thumb:hover { background: #b0b4bb; }
+        /* ===== Universal summary header ===== */
+        .cart-summary { padding-bottom: 14px; border-bottom: 1px solid #e5e7eb; margin-bottom: 6px; }
+        .cart-summary .cs-row {
+            display: flex; justify-content: space-between; align-items: baseline;
+            font-size: 0.875rem; line-height: 1.5; color: #374151;
+        }
+        .cart-summary .cs-row.cs-total { margin-bottom: 6px; justify-content: flex-start; }
+        .cart-summary .cs-total .cs-amount { font-weight: 700; color: #111; font-size: 0.95rem; }
+        .cart-summary .cs-sub { font-size: 0.875rem; color: #6b7280; }
+
+        /* "Includes taxes" accordion */
+        .tax-toggle {
+            display: inline-flex; align-items: center; gap: 6px;
+            margin-top: 0; cursor: pointer;
+            font-size: 0.8125rem; color: #6b7280;
+            transition: color 0.2s ease; user-select: none;
+        }
+        .tax-toggle:hover, .tax-toggle:hover .tax-caret { color: #000000; }
+        .tax-toggle .tax-caret { transition: transform 0.2s ease, color 0.2s ease; font-size: 0.7rem; }
+        .tax-toggle.open .tax-caret { transform: rotate(180deg); }
+        .tax-details { margin-top: 8px; }
+        .tax-details .cs-row {
+            display: flex; justify-content: space-between;
+            font-size: 0.8125rem; color: #6b7280; line-height: 1.6;
+        }
+
+        /* Bottom grand total line (above Reserve) */
+        .cart-card h4 { font-size: 1.15rem; font-weight: 700; }
+
+        .cart-grand {
+            display: flex; justify-content: space-between; align-items: baseline;
+            margin-top: 16px; padding-top: 14px; border-top: 1px solid #e5e7eb;
+        }
+        .cart-grand .cg-label { font-weight: 700; color: #111; font-size: 1.05rem; }
+        .cart-grand .cg-amount { font-weight: 700; color: #111; font-size: 1.05rem; }
+        .cart-taxes { margin-top: 2px; }
+
+        /* ===== Individual room item ===== */
+        .cart-item { border-bottom: 1px solid #eee; padding: 14px 0; }
+        .cart-item:last-child { border-bottom: none; }
+        .cart-item .ci-roomlabel-row { margin-bottom: 4px; }
+        .cart-item .ci-roomlabel {
+            font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em;
+            text-transform: uppercase; color: #ff5778;
+        }
+        .cart-item .ci-line {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.875rem; line-height: 1.45;
+        }
+        .cart-item .ci-title { font-weight: 700; color: #111; }
+        .cart-item .ci-occ-row { margin-top: 2px; }
+        .cart-item .ci-occ { color: #6b7280; font-size: 0.875rem; }
+        .cart-item .ci-price { font-weight: 700; color: #111; font-size: 0.9rem; white-space: nowrap; }
+        .cart-item .ci-duration { color: #6b7280; font-size: 0.875rem; margin-top: 0; display: block; }
+
+        /* Trash-can remove icon: muted gray → solid black on hover, static size */
+        .cart-item .ci-remove {
+            background: none; border: none; padding: 0; margin: 0; cursor: pointer;
+            color: #9ca3af; font-size: 0.9rem; line-height: 1;
+            display: inline-flex; align-items: center; justify-content: center;
+            transition: color 0.2s ease;
+        }
+        .cart-item .ci-remove:hover { color: #000000; transform: none; }
+
+        .reserve-btn { background: #ff5778; color: #ffffff; width: 100%; border: none; padding: 15px; border-radius: 8px; font-weight: bold; margin-top: 20px; }
 
         /* Notification Alert */
         #capacity-alert {
@@ -141,7 +225,7 @@
             flex-direction: column; 
             /* Use a negative gap to pull lines even tighter if 0px isn't enough */
             gap: -2px;               
-            font-size: 0.8rem;      
+            font-size: 0.9rem;      
             color: #666; 
             margin-bottom: 15px; 
             margin-top: 10px;
@@ -158,7 +242,7 @@
         }
 
         .features-list i {
-            font-size: 0.75rem;
+            font-size: 0.85rem;
             width: 20px; 
             /* Ensures the icon doesn't add extra vertical height */
             line-height: 1; 
@@ -247,8 +331,8 @@
             top: -12px;
             right: -12px;
 
-            background: #000;
-            color: #fff;
+            background: #ffffff;    /* White circle */
+            color: #000000;         /* Black 'x' */
             width: 32px;
             height: 32px;
             border-radius: 50%;
@@ -259,11 +343,18 @@
 
             cursor: pointer;
             z-index: 10;
-            border: 2px solid white;
+            border: 2px solid #ffffff;
 
             font-size: 20px;
             line-height: 1;
-            transition: transform 0.2s ease;
+            opacity: 0.6;                       /* Translucent by default */
+            transition: opacity 0.2s ease;      /* No scaling transition */
+        }
+
+        /* Opaque only when hovering the button itself (not the photo) */
+        .close-image-btn:hover {
+            opacity: 1;
+            transform: none;
         }
         
         #imageModal .inline-wrapper {
@@ -282,9 +373,7 @@
             opacity: 1;
         }
 
-        #imageModal .inline-wrapper:hover .close-image-btn {
-            transform: scale(1.1);
-        }
+        /* Hovering the photo/wrapper must NOT affect the close button */
 
         #imageModal {
             position: fixed;
@@ -293,16 +382,17 @@
             display: none;
             justify-content: center;
             align-items: center;
-            z-index: 3000;
+            z-index: 10001;                 /* above the floating search card (z-index 9999) */
+            backdrop-filter: blur(5px);
         }
 
-        /* Styling for the Magnifying Glass Icon Wrapper */
+        /* White circular expand button with a black plus sign */
         .expand-icon {
             position: absolute;
             bottom: 12px;           /* Offset from the bottom */
             right: 12px;            /* Offset from the right */
-            background: rgba(0, 0, 0, 0.5); /* Semi-transparent dark circle */
-            color: white;
+            background: #ffffff;    /* Clean white circle */
+            color: #000000;         /* Black plus sign */
             width: 34px;
             height: 34px;
             border-radius: 50%;     /* Makes it a perfect circle */
@@ -310,21 +400,25 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: all 0.2s ease;
+            opacity: 0.6;           /* Translucent by default */
+            transition: opacity 0.2s ease;
             z-index: 5;
-            border: 1px solid rgba(255, 255, 255, 0.2); /* Subtle light border */
+            border: 1px solid rgba(0, 0, 0, 0.15);
         }
 
         /* Icon size and specific styling */
         .expand-icon i {
             font-size: 0.9rem;      /* Adjusted for the 'Studio Double' look */
+            color: #000000;
             pointer-events: none;   /* Ensures click goes to the parent div */
         }
 
-        /* Interaction logic: Subtle grow and brighten on hover */
-        .room-image:hover .expand-icon {
-            background: rgba(0, 0, 0, 0.8);
-            transform: scale(1.1);
+        /* Brighten to fully opaque on hover; keep a fixed size (no scaling) */
+        .room-image:hover .expand-icon,
+        .expand-icon:hover {
+            opacity: 1;
+            background: #ffffff;
+            transform: none;
         }
 
         /* --- SEARCH LOADING OVERLAY --- */
@@ -335,7 +429,7 @@
             display: none;
             align-items: center;
             justify-content: center;
-            z-index: 5000;
+            z-index: 10000;
             backdrop-filter: blur(3px);
         }
 
@@ -352,7 +446,8 @@
             border: 3px solid #ddd;
             border-top-color: #000;
             border-radius: 50%;
-            animation: spin 1s linear infinite;
+            animation: spin 1s linear infinite !important; /* beat main.css animation:none override */
+            will-change: transform;
             margin: 0 auto 18px;
         }
 
@@ -366,7 +461,8 @@
 
         /* Animations */
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            0%   { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         @keyframes fadeIn {
@@ -374,112 +470,406 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
+        /* ===== BOOKING PAGE REDESIGN ===== */
+        .top-banner {
+            position: absolute; top: 0; left: 0; width: 100%;
+            z-index: 100; background: transparent;
+        }
+        .banner-inner {
+            width: 100%; margin: 0; padding: 0.75rem 2rem;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .banner-inner #logo { line-height: 1; flex: 0 0 auto; }
+        .banner-inner #logo img { height: 72px; transition: opacity 0.2s ease-in-out; }
+        .banner-inner #logo a:hover img { opacity: 0.8; }
+        .banner-inner #nav { flex: 1 1 auto; display: flex; justify-content: flex-end; align-items: center; margin-right: 1.5rem; }
+        .banner-inner #nav .list-inline { display: flex; align-items: center; }
+        /* Default nav link color: solid black (hover handled globally -> #ff5778) */
+        .banner-inner #nav a { color: #000000 !important; }
+        /* Remove the dotted underline on the header nav links */
+        .banner-inner #nav a,
+        .banner-inner #nav a:link,
+        .banner-inner #nav a:visited,
+        .banner-inner #nav a:hover,
+        .banner-inner #nav a:focus {
+            text-decoration: none !important;
+            border-bottom: none !important;
+        }
+
+        /* BOOK NOW button in the top banner (matches nav link scale) */
+        .banner-inner .book-now-btn {
+            flex: 0 0 auto;
+            padding: 0.5rem 1.4rem !important;
+            height: auto !important;
+            line-height: 1.4 !important;
+            font-size: 1.05rem !important;
+        }
+
+        .hero {
+            position: relative;
+            width: 100%;
+            height: 380px;
+            background-image: url('/static/images/Booking_Image.png');
+            background-size: cover;
+            background-position: center 30%; /* shows a better-cropped section of the room */
+            margin-top: 0;                   /* flush to the top of the viewport */
+            padding-top: 90px;               /* space for the overlaying transparent header */
+            margin-bottom: 90px;             /* room for the overlapping search card */
+            overflow: visible;               /* never clip the popovers */
+        }
+
+        .search-card {
+            position: absolute;
+            left: 50%;
+            bottom: -55px;                   /* floats over the hero image */
+            transform: translateX(-50%);
+            z-index: 9999;                   /* keep the whole card + popovers above page content */
+            width: min(1000px, 92%);
+            background: #ffffff;
+            border: 1px solid #9ca3af;   /* matches room card / reservation box border */
+            border-radius: 16px;
+            box-shadow: none;
+            padding: 9px 14px;
+            display: flex;
+            align-items: stretch;
+            gap: 14px;
+        }
+
+        .search-field {
+            flex: 1;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 6px 16px;
+            cursor: pointer;
+            position: relative;
+            transition: border-color 0.2s ease;
+            background: #fff;
+        }
+        .search-field.field-active { border-color: #ff5778; }
+        .search-field .field-label {
+            font-size: 0.85rem; letter-spacing: 0.4px;
+            color: #888; font-weight: 700;
+        }
+        .search-field .field-value {
+            font-size: 1.1rem; font-weight: 700; color: #222; margin-top: 2px;
+        }
+
+        .search-cta {
+            background: #ff5778; color: #fff; border: none; border-radius: 10px;
+            padding: 0 22px; font-weight: 700; font-size: 0.85rem;
+            cursor: pointer; transition: background 0.2s ease; align-self: center;
+            height: 40px;
+        }
+        .search-cta:hover { background: #e83e63; }
+
+        /* Blur/dim the search banner while a loader or photo modal is active */
+        .search-card.blurred {
+            filter: blur(4px);
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .field-popover {
+            display: none; position: absolute; top: calc(100% + 12px); left: 0;
+            background: #fff; border: 1px solid #eee; border-radius: 16px;
+            box-shadow: 0 18px 45px rgba(0,0,0,0.20); z-index: 9999; padding: 18px;
+        }
+        #calendar-popover { min-width: 1040px; }
+        #guests-popover { width: 600px; right: 0; left: auto; }
+
+        /* Space out the multi-month columns so adjacent months don't touch */
+        #calendar-popover .flatpickr-month { margin: 0 10px; }
+        #calendar-popover .flatpickr-weekdaycontainer { margin: 0 10px; }
+        #calendar-popover .dayContainer { margin: 0 10px; }
+
+        /* --- Calendar popover --- */
+        .flatpickr-day.selected,
+        .flatpickr-day.startRange,
+        .flatpickr-day.endRange {
+            background: #ff5778 !important;
+            border-color: #ff5778 !important;
+            border-radius: 8px !important;      /* filled squares with rounded corners */
+            color: #fff !important;
+            box-shadow: none !important;        /* kill the default blue connector box */
+        }
+        .flatpickr-day.inRange {
+            background: #ffe3ea !important;
+            border-color: #ffe3ea !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            color: #333 !important;
+        }
+        .calendar-footer {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-top: 14px;
+        }
+        .calendar-footer .cal-actions { display: flex; gap: 10px; }
+
+        /* --- Rooms & Guests grid --- */
+        .guests-grid {
+            display: grid;
+            grid-template-columns: auto 1fr 1fr 1fr;
+            gap: 10px 14px;
+            align-items: center;
+        }
+        .gg-head { text-align: center; }
+        .gg-head:first-child { text-align: left; }
+        .gg-title { font-weight: 700; font-size: 0.9rem; color: #222; }
+        .gg-sub { font-size: 0.72rem; color: #999; line-height: 1.2; }
+        .gg-roomlabel { font-weight: 700; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+
+        .stepper { display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .step-btn {
+            width: 30px; height: 30px; border-radius: 50%; border: 1px solid #bbb;
+            background: #fff; cursor: pointer; font-size: 1.05rem; line-height: 1;
+            display: flex; align-items: center; justify-content: center; color: #333;
+            flex-shrink: 0; padding: 0; text-align: center;
+        }
+        .step-btn:hover:not(:disabled) { border-color: #ff5778; color: #ff5778; }
+        .step-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .step-val {
+            min-width: 40px; height: 32px; border: 1px solid #ddd; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; background: #fafafa;
+        }
+
+        .remove-room-btn { background: none; border: none; color: #c0392b; cursor: pointer; font-size: 0.95rem; }
+        .guests-footer {
+            display: flex; justify-content: flex-end; align-items: center; gap: 12px;
+            margin-top: 18px; padding-top: 14px; border-top: 1px solid #eee;
+        }
+        .add-room-btn {
+            background: #fff; border: 1px solid #ff5778; color: #ff5778; font-weight: 400;
+            cursor: pointer; padding: 7px 14px; border-radius: 10px; font-size: 0.85rem;
+        }
+        .add-room-btn:hover { background: #fff0f3; }
+        .done-btn {
+            background: #ff5778; color: #fff; border: none; border-radius: 10px;
+            padding: 7px 16px; font-weight: 400; cursor: pointer; font-size: 0.85rem;
+        }
+        .done-btn:hover { background: #D63683; }
+
+        .multiroom-banner {
+            display: none; background: #ffffff; color: #ff5778; padding: 14px 20px;
+            border-radius: 10px; font-weight: 700; margin-bottom: 20px; text-align: center;
+            border: 1px solid #e0e0e0;
+        }
+
+        .booking-container { margin-top: 30px !important; }
+
+        /* Space between "Detailed Amenities" text and its chevron icon (all cards) */
+        .view-amenities .icon { margin-left: 8px; }
+
+        /* Detailed Amenities hover: smooth text color shift */
+        .view-amenities { transition: color 0.2s ease; font-size: 0.95rem; }
+        .view-amenities:hover, .view-amenities:hover .icon { color: #D63683 !important; }
+
+        /* Darker gray smoking/non-smoking badges with white text */
+        .room-card .badge {
+            background-color: #374151 !important;
+            color: #ffffff !important;
+        }
+
+        /* Rooms the server reports as sold out for the chosen dates */
+        .room-card.sold-out {
+            opacity: 0.55;
+        }
+        .room-card.sold-out .book-btn {
+            background-color: #b0b4bb !important;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        /* ===== Keep Room Cards & Reservations card fully static on hover ===== */
+        .room-card, .cart-card,
+        .room-card:hover, .cart-card:hover {
+            transition: none !important;
+            transform: none !important;
+            box-shadow: none !important;                 /* no shadow / drop-shadow */
+            background: #ffffff !important;               /* no background shading */
+            border: 1px solid #9ca3af !important;         /* darker, defined gray border */
+        }
+
+        /* ===== Unified hover for the 4 primary action buttons ===== */
+        .search-cta, .book-btn, .remove-item-btn, .reserve-btn {
+            transition: background-color 0.2s ease !important;
+        }
+        .search-cta:hover, .book-btn:hover, .remove-item-btn:hover, .reserve-btn:hover,
+        .search-cta:focus, .book-btn:focus, .remove-item-btn:focus, .reserve-btn:focus {
+            background-color: #D63683 !important;
+            color: #ffffff !important;
+            transform: none !important;   /* no scaling / shifting */
+            box-shadow: none !important;  /* no shadow change */
+            outline: none;
+        }
+        /* Reserve button uses its own darker hover shade */
+        .reserve-btn:hover, .reserve-btn:focus {
+            background-color: #D63683 !important;
+        }
+
+        /* ===== Detailed Amenities modal: above search bar + darkened backdrop ===== */
+        #amenities-modal {
+            z-index: 10001 !important;    /* above the floating search card (z-index 9999) */
+            background-color: rgba(0,0,0,0.6) !important;
+            backdrop-filter: blur(5px);
+        }
+
+        /* Room number label inside each reservation card */
+        .cart-room-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #ff5778;
+            margin-bottom: 4px;
+        }
+
+        /* ===== Date change confirmation modal ===== */
+        #date-change-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 10002;                 /* above the search card + other modals */
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+            animation: modalBackdropIn 0.25s ease forwards;
+        }
+        #date-change-modal .confirm-card {
+            background: #fff;
+            width: 90%;
+            max-width: 440px;
+            border-radius: 12px;
+            padding: 28px 26px 22px;
+            text-align: left;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+            animation: modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        #date-change-modal h3 {
+            margin: 0 0 10px; font-size: 1.25rem; font-weight: 800; color: #111;
+        }
+        #date-change-modal p {
+            margin: 0 0 20px; color: #555; font-size: 0.95rem; line-height: 1.5;
+        }
+        #date-change-modal .confirm-actions {
+            display: flex; justify-content: flex-end; gap: 10px;
+        }
+        #date-change-modal .confirm-cancel,
+        #date-change-modal .confirm-proceed {
+            border: none; border-radius: 8px; padding: 9px 16px;
+            font-size: 0.9rem; font-weight: 600; cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        #date-change-modal .confirm-cancel {
+            background: #eee; color: #333;
+        }
+        #date-change-modal .confirm-cancel:hover { background: #e0e0e0; }
+        #date-change-modal .confirm-proceed {
+            background: #ff5778; color: #fff;
+        }
+        #date-change-modal .confirm-proceed:hover { background: #D63683; }
+
+        /* ===== Reserve verification error modal ===== */
+        #reserve-error-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 10003;                 /* above every other modal */
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+            animation: modalBackdropIn 0.25s ease forwards;
+        }
+        #reserve-error-modal .confirm-card {
+            background: #fff;
+            width: 90%;
+            max-width: 440px;
+            border-radius: 12px;
+            padding: 28px 26px 22px;
+            text-align: left;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+            animation: modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        #reserve-error-modal h3 { margin: 0 0 10px; font-size: 1.25rem; font-weight: 800; color: #111; }
+        #reserve-error-modal p { margin: 0 0 20px; color: #555; font-size: 0.95rem; line-height: 1.5; }
+        #reserve-error-modal .confirm-actions { display: flex; justify-content: flex-end; gap: 10px; }
+        #reserve-error-modal .confirm-proceed {
+            border: none; border-radius: 8px; padding: 9px 16px;
+            font-size: 0.9rem; font-weight: 600; cursor: pointer;
+            background: #ff5778; color: #fff; transition: background-color 0.2s ease;
+        }
+        #reserve-error-modal .confirm-proceed:hover { background: #D63683; }
+
     </style>
 </head>
-<body>
+<body class="landing">
     <div id="search-loader">
         <div class="loader-card">
             <div class="compass-loader"></div>
             <div class="loader-text">Checking availability…</div>
         </div>
     </div>
+    <div class="top-banner">
+        <div class="banner-inner">
+            <h1 id="logo" class="m-0"><a href="/"><img src="/static/images/GML_Logo.png" height="60"></a></h1>
+            <nav id="nav">
+                <ul class="list-inline m-0">
+                    <li class="list-inline-item mx-3"><a href="/" class="white">Home</a></li>
+                    <li class="list-inline-item mx-3"><a href="/rooms" class="white">Rooms</a></li>
+                    <li class="list-inline-item mx-3"><a href="/travel-guide" class="white">Travel Guide</a></li>
+                    <li class="list-inline-item mx-3"><a href="/contact" class="white">Contact</a></li>
+                </ul>
+            </nav>
+            <a href="/booking" class="button primary book-now-btn">BOOK NOW</a>
+        </div>
+    </div>
+
+    <div class="hero">
+        <div class="search-card">
+            <input type="text" id="checkin" style="display:none">
+            <input type="text" id="checkout" style="display:none">
+
+            <div class="search-field" id="dates-field" onclick="toggleField(this, 'calendar-popover')">
+                <div class="field-label">Select Dates</div>
+                <div class="field-value" id="dates-value">Select dates</div>
+                <div class="field-popover" id="calendar-popover" onclick="event.stopPropagation()">
+                    <div id="inline-calendar"></div>
+                    <div class="calendar-footer">
+                        <span id="nights-info" class="text-muted">Nights: 1</span>
+                        <div class="cal-actions">
+                            <button type="button" class="add-room-btn" onclick="resetDates()">Reset</button>
+                            <button type="button" class="done-btn" onclick="applyDates()">Done</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="search-field" id="guests-field" onclick="toggleField(this, 'guests-popover')">
+                <div class="field-label">Select Rooms and Guests</div>
+                <div class="field-value" id="guests-value">1 Room, 2 Guests</div>
+                <div class="field-popover" id="guests-popover" onclick="event.stopPropagation()">
+                    <div id="rooms-config-list"></div>
+                    <div class="guests-footer">
+                        <button type="button" id="add-room-btn" class="add-room-btn" onclick="addRoom()"><i class="fa-solid fa-plus"></i> Add additional room</button>
+                        <button type="button" class="done-btn" onclick="applyGuests()">Done</button>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" class="search-cta" onclick="startSearchWithLoader()">Search</button>
+        </div>
+    </div>
+
     <div class="booking-container">
-        <header id="header" class="mb-5">
-            <div class="d-flex justify-content-between align-items: center;">
-                <h1 id="logo"><a href="/"><img src="/static/images/GML_Logo_white.png" height="60"></a></h1>
-                <nav id="nav">
-                    <ul class="list-inline m-0">
-                        <li class="list-inline-item mx-3"><a href="/" class="white">Home</a></li>
-                        <li class="list-inline-item mx-3"><a href="/rooms" class="white">Rooms</a></li>
-                        <li class="list-inline-item mx-3"><a href="/travel-guide" class="white">Travel Guide</a></li>
-                        <li class="list-inline-item mx-3"><a href="/contact" class="white">Contact</a></li>
-                        <li class="list-inline-item mx-3"><a href="/booking" class="button primary">BOOK NOW</a></li>
-                    </ul>
-                </nav>
-            </div>
-        </header>
-
-        <div class="search-summary">
-            <div class="search-item position-relative" style="flex: 1.5; cursor: pointer;" onclick="togglePopup()">
-                <div class="d-flex align-items-center gap-3">
-                    <i class="fa-solid fa-user-group"></i>
-                    <div class="input-stack">
-                        <label>Guests</label>
-                        <div class="clickable-box">
-                            <div id="guest-summary">2 Adults</div>
-                        </div>
-                    </div>
-                </div>
-                <div id="guest-popup" class="guest-popup" onclick="event.stopPropagation()">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <div><strong>Adults</strong><br><small>Ages 18+</small></div>
-                        <div class="d-flex align-items-center gap-3">
-                            <button type="button" class="btn btn-outline-dark btn-sm rounded-circle" onclick="changeCount('adults', -1)">-</button>
-                            <span id="adults-count">2</span>
-                            <button type="button" class="btn btn-outline-dark btn-sm rounded-circle" onclick="changeCount('adults', 1)">+</button>
-                        </div>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <div><strong>Children</strong><br><small>Ages 0-17</small></div>
-                        <div class="d-flex align-items-center gap-3">
-                            <button type="button" class="btn btn-outline-dark btn-sm rounded-circle" onclick="changeCount('children', -1)">-</button>
-                            <span id="children-count">0</span>
-                            <button type="button" class="btn btn-outline-dark btn-sm rounded-circle" onclick="changeCount('children', 1)">+</button>
-                        </div>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <div><strong>Pets</strong><br><small>All pets are welcome!</small></div>
-                        <div class="d-flex align-items-center gap-3">
-                            <button type="button" class="btn btn-outline-dark btn-sm rounded-circle" onclick="changeCount('pets', -1)">-</button>
-                            <span id="pets-count">0</span>
-                            <button type="button" class="btn btn-outline-dark btn-sm rounded-circle" onclick="changeCount('pets', 1)">+</button>
-                        </div>
-                    </div>
-                    <button type="button" class="btn btn-dark w-100 btn-sm" onclick="togglePopup()">Apply</button>
-                </div>
-            </div>
-
-            <div class="search-divider-slim"></div>
-
-            <div class="search-item" style="flex: 1;" onclick="openCalendar()">
-                <div class="d-flex align-items-center gap-3">
-                    <i class="fa-solid fa-calendar"></i>
-                    <div class="input-stack">
-                        <label>Check In</label>
-                        <input type="text" id="checkin" class="text-minimal" readonly style="cursor: pointer;">
-                    </div>
-                </div>
-            </div>
-
-            <div class="d-flex align-items-center px-4" style="color: #ccc; font-size: 1.2rem;"> → </div>
-
-            <div class="search-item" style="flex: 1; cursor: pointer;" onclick="openCalendar()">
-                <div class="d-flex align-items-center gap-3">
-                    <i class="fa-solid fa-calendar"></i>
-                    <div class="input-stack">
-                        <label>Check Out</label>
-                        <input type="text" id="checkout" class="text-minimal" readonly style="cursor: pointer;">
-                    </div>
-                </div>
-            </div>
-            <div class="d-flex align-items-center px-4" style="color: #ccc; font-size: 1.2rem;"> </div>
-            <button type="button" class="search-btn-minimal" onclick="startSearchWithLoader()">Search</button>
-        </div>
-
-        <div id="calendar-modal" class="calendar-overlay" onclick="closeCalendar()">
-            <div class="calendar-modal-content" onclick="event.stopPropagation()">
-                <div id="inline-calendar"></div>
-                <div class="mt-4 d-flex justify-content-between align-items-center">
-                    <div id="selected-dates-info" class="text-muted small">Select dates</div>
-                    <button type="button" class="btn btn-dark" onclick="closeCalendar()">Apply Dates</button>
-                </div>
-            </div>
-        </div>
 
         <div class="main-content">
             <div class="rooms-column">
-                <h4 class="mb-3">Available Options</h4>
-                
+                <div id="multiroom-banner" class="multiroom-banner"></div>
+
                 <div id="capacity-alert">
                     <i class="fa-solid fa-triangle-exclamation fa-2x"></i>
                     <div>
@@ -490,10 +880,10 @@
                 
                 <!-- Room Cards -->
                 <div id="rooms-list">
-                    <div class="room-card" data-capacity="2" data-priority="1">
+                    <div class="room-card" data-capacity="2" data-priority="1" data-room="Standard Queen">
                         <div class="room-image" style="background-image: url('/static/images/STD-Q-NS.jpg'); background-position: 65% center;" onclick="openModal('/static/images/STD-Q-NS.jpg')">
                             <div class="expand-icon">
-                                <i class="fa-solid fa-magnifying-glass-plus"></i>
+                                <i class="fa-solid fa-plus"></i>
                             </div>
                         </div>
                         <div class="room-details">
@@ -502,26 +892,26 @@
                                 <div class="room-title">Standard Queen Non-Smoking</div>
                                 <div class="features-list">
                                     <span><i class="fa-solid fa-bed"></i> 1 Queen Bed</span><br>
-                                    <span><i class="fa-sharp fa-solid fa-people-group"></i> 2 Guests</span><br>
+                                    <span><i class="fa-sharp fa-solid fa-people-group"></i> Accommodates 2 Guests</span><br>
                                     <span><i class="fa-solid fa-toilet-paper"></i> Ensuite Bathroom</span>
                                 </div>
                                 <div class="mt-2">
                                     <a href="javascript:void(0)" class="view-amenities" onclick="openAmenitiesModal('modal-standard')">
-                                        Detailed Amenities &nbsp; <span class="icon solid fa-chevron-down"></span>
+                                        Detailed Amenities <span class="icon solid fa-chevron-down"></span>
                                     </a>
                                 </div>
                             </div>
                             <div class="d-flex justify-content-between align-items-center">
-                                <div class="price">$84.99 <small class="fw-normal">/ night</small></div>
+                                <div class="price">$84.99 <small class="fw-normal">CAD / night</small></div>
                                 <button class="book-btn" onclick="addToCart('Standard Queen', 84.99)">Book</button>
                             </div>
                         </div>
                     </div>
 
-                    <div class="room-card" data-capacity="2" data-priority="2">
+                    <div class="room-card" data-capacity="2" data-priority="2" data-room="Studio Queen Non-Smoking">
                         <div class="room-image" style="background-image: url('/static/images/STU-Q-NS.jpg'); background-position: 65% center;" onclick="openModal('/static/images/STU-Q-NS.jpg')">
                             <div class="expand-icon">
-                                <i class="fa-solid fa-magnifying-glass-plus"></i>
+                                <i class="fa-solid fa-plus"></i>
                             </div>
                         </div>
                         <div class="room-details">
@@ -541,16 +931,16 @@
                                 </div>
                             </div>
                             <div class="d-flex justify-content-between align-items-center">
-                                <div class="price">$89.99 <small class="fw-normal">/ night</small></div>
+                                <div class="price">$89.99 <small class="fw-normal">CAD / night</small></div>
                                 <button class="book-btn" onclick="addToCart('Studio Queen Non-Smoking', 89.99)">Book</button>
                             </div>
                         </div>
                     </div>
 
-                    <div class="room-card" data-capacity="2" data-priority="3">
+                    <div class="room-card" data-capacity="2" data-priority="3" data-room="Studio Queen Smoking">
                         <div class="room-image" style="background-image: url('/static/images/STU-Q-NS.jpg'); background-position: 65% center;" onclick="openModal('/static/images/STU-Q-NS.jpg')">
                             <div class="expand-icon">
-                                <i class="fa-solid fa-magnifying-glass-plus"></i>
+                                <i class="fa-solid fa-plus"></i>
                             </div>
                         </div>
                         <div class="room-details">
@@ -570,16 +960,16 @@
                                 </div>
                             </div>
                             <div class="d-flex justify-content-between align-items-center">
-                                <div class="price">$89.99 <small class="fw-normal">/ night</small></div>
+                                <div class="price">$89.99 <small class="fw-normal">CAD / night</small></div>
                                 <button class="book-btn" onclick="addToCart('Studio Queen Smoking', 89.99)">Book</button>
                             </div>
                         </div>
                     </div>
 
-                    <div class="room-card" data-capacity="2" data-priority="4">
+                    <div class="room-card" data-capacity="2" data-priority="4" data-room="Suite Queen Non-Smoking">
                         <div class="room-image" style="background-image: url('/static/images/STE-Q-NS.JPG'); background-position: 100% center;" onclick="openModal('/static/images/STE-Q-NS.JPG')">
                                 <div class="expand-icon">
-                                <i class="fa-solid fa-magnifying-glass-plus"></i>
+                                <i class="fa-solid fa-plus"></i>
                             </div>
                         </div>
                         <div class="room-details">
@@ -600,16 +990,16 @@
                                 </div>
                             </div>
                             <div class="d-flex justify-content-between align-items-center">
-                                <div class="price">$104.99 <small class="fw-normal">/ night</small></div>
+                                <div class="price">$104.99 <small class="fw-normal">CAD / night</small></div>
                                 <button class="book-btn" onclick="addToCart('Suite Queen Non-Smoking', 104.99)">Book</button>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="room-card" data-capacity="2" data-priority="5">
+                    <div class="room-card" data-capacity="2" data-priority="5" data-room="Suite King Non-Smoking">
                         <div class="room-image" style="background-image: url('/static/images/STE-K-NS.JPG'); background-position: 75% center;" onclick="openModal('/static/images/STE-K-NS.JPG')">
                                 <div class="expand-icon">
-                                <i class="fa-solid fa-magnifying-glass-plus"></i>
+                                <i class="fa-solid fa-plus"></i>
                             </div>
                         </div>
                         <div class="room-details">
@@ -630,16 +1020,16 @@
                                 </div>
                             </div>
                             <div class="d-flex justify-content-between align-items-center">
-                                <div class="price">$104.99 <small class="fw-normal">/ night</small></div>
+                                <div class="price">$104.99 <small class="fw-normal">CAD / night</small></div>
                                 <button class="book-btn" onclick="addToCart('Suite King Non-Smoking', 104.99)">Book</button>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="room-card" data-capacity="4" data-priority="6">
+                    <div class="room-card" data-capacity="4" data-priority="6" data-room="Studio Double Queen Non-Smoking">
                         <div class="room-image" style="background-image: url('/static/images/STU-QQ-NS.jpg'); background-position: 45% center;" onclick="openModal('/static/images/STU-QQ-NS.jpg')">
                                 <div class="expand-icon">
-                                <i class="fa-solid fa-magnifying-glass-plus"></i>
+                                <i class="fa-solid fa-plus"></i>
                             </div>
                         </div>
                         <div class="room-details">
@@ -659,16 +1049,16 @@
                                 </div>
                             </div>
                             <div class="d-flex justify-content-between align-items-center">
-                                <div class="price">$99.99 <small class="fw-normal">/ night</small></div>
+                                <div class="price">$99.99 <small class="fw-normal">CAD / night</small></div>
                                 <button class="book-btn" onclick="addToCart('Studio Double Queen Non-Smoking', 99.99)">Book</button>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="room-card" data-capacity="4" data-priority="7">
+                    <div class="room-card" data-capacity="4" data-priority="7" data-room="Studio Double Queen Smoking">
                         <div class="room-image" style="background-image: url('/static/images/STU-QQ-NS.jpg'); background-position: 45% center;" onclick="openModal('/static/images/STU-QQ-NS.jpg')">
                                 <div class="expand-icon">
-                                <i class="fa-solid fa-magnifying-glass-plus"></i>
+                                <i class="fa-solid fa-plus"></i>
                             </div>
                         </div>
                         <div class="room-details">
@@ -688,32 +1078,57 @@
                                 </div>
                             </div>
                             <div class="d-flex justify-content-between align-items-center">
-                                <div class="price">$99.99 <small class="fw-normal">/ night</small></div>
+                                <div class="price">$99.99 <small class="fw-normal">CAD / night</small></div>
                                 <button class="book-btn" onclick="addToCart('Studio Double Queen Smoking', 99.99)">Book</button>
                             </div>
                         </div>
                     </div>
                     </div>
-                <div id="imageModal" onclick="closeModal()">
-                    <div class="inline-wrapper" onclick="event.stopPropagation()"> 
-                        <img class="image-modal-img" id="expandedImg">
-                        <button class="close-image-btn" onclick="closeModal()" aria-label="Close image">
-                            &times;
-                        </button>
-                    </div>
-                </div>
             </div>
 
             <div class="cart-column">
                 <div class="cart-card">
-                    <h4 class="mb-4">Your Reservations</h4>
+                    <h4 class="mb-3">Your Reservation</h4>
                     <div id="cart-empty" class="text-muted text-center py-4">No rooms selected yet.</div>
-                    <div id="cart-items"></div>
-                    
-                    <div class="mt-4 pt-3 border-top d-flex justify-content-between">
-                        <strong>Total</strong>
-                        <strong id="cart-total">$0.00</strong>
+
+                    <div id="cart-summary" class="cart-summary" style="display: none;">
+                        <div class="cs-row cs-total">
+                            <span class="cs-amount"><span id="cart-total">$0.00</span> CAD</span>
+                        </div>
+                        <div class="cs-row cs-sub">
+                            <span id="cart-dates">—</span>
+                            <span id="cart-nights">0 nights</span>
+                        </div>
+                        <div class="cs-row cs-sub">
+                            <span id="cart-stats">0 Rooms, 0 Guests</span>
+                        </div>
                     </div>
+
+                    <div id="cart-items"></div>
+
+                    <div id="cart-grand" class="cart-grand" style="display: none;">
+                        <span class="cg-label">Total:</span>
+                        <span class="cg-amount"><span id="grand-total">$0.00</span> CAD</span>
+                    </div>
+
+                    <!-- Tax breakdown sits at the very bottom, directly under the Total line -->
+                    <div id="cart-taxes" class="cart-taxes" style="display: none;">
+                        <div class="tax-toggle" id="tax-toggle" onclick="toggleTaxes()">
+                            <span>Includes taxes</span>
+                            <i class="fa-solid fa-chevron-down tax-caret"></i>
+                        </div>
+                        <div id="tax-details" class="tax-details" style="display: none;">
+                            <div class="cs-row">
+                                <span>GST (5%)</span>
+                                <span id="tax-gst">$0.00 CAD</span>
+                            </div>
+                            <div class="cs-row" id="tax-atl-row">
+                                <span>Alberta Tourism Levy (6%)</span>
+                                <span id="tax-atl">$0.00 CAD</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <div id="cart-error" class="text-danger small mt-2 text-center" style="display: none; background: #fff1f1; border: 1px solid #ffcccc; padding: 8px; border-radius: 4px;">
                         <i class="fa-solid fa-circle-exclamation"></i> Please select a room before pressing "RESERVE".
                     </div>
@@ -729,42 +1144,97 @@
         let cart = [];
         let isSubmitting = false; // Flag to bypass "Leave Site" warning
 
-        // --- 2. SEARCH LOGIC (THE HEART OF YOUR REQUEST) ---
+        // --- 2. MULTI-ROOM STEP STATE MACHINE ---
+        // Each slot represents one room the guest asked for; it holds the requested
+        // guest plan and (once booked) the reserved room item.
+        let roomSlots = [];          // [{ plan:{adults,children,pets}, item: null|{...} }]
+        let searchTotalRooms = 1;    // Y = number of rooms requested
+        let activeSlot = -1;         // index of the slot currently being selected (-1 = none/complete)
+
+        function firstUnfilledSlot() {
+            return roomSlots.findIndex(s => !s.item);
+        }
+
+        function allRoomsSelected() {
+            return roomSlots.length > 0 && roomSlots.every(s => s.item);
+        }
+
         function performSearch() {
-            const totalGuests = counts.adults + counts.children;
+            // A new search starts a fresh single itinerary: reset any picked rooms.
+            roomSlots = roomConfigs.map(r => ({ plan: { ...r }, item: null }));
+            searchTotalRooms = roomSlots.length;
+            activeSlot = 0;
+
+            // Clear the cart so the multi-room plan is rebuilt from scratch
+            cart = [];
+            localStorage.removeItem('bookingCart');
+            syncCartFromSlots();
+            updateCartUI();
+
+            filterForCurrentRoom();
+            updateMultiRoomBanner();
+        }
+
+        function filterForCurrentRoom() {
             const rooms = document.querySelectorAll('.room-card');
             const alertBox = document.getElementById('capacity-alert');
             const alertText = document.getElementById('alert-text');
             const roomsList = document.getElementById('rooms-list');
-            
-            // Logic for more than 4 people
-            if (totalGuests > 4) {
-                alertBox.style.display = 'flex';
-                alertText.innerText = `No rooms are available to accommodate ${totalGuests} guests.`;
-                rooms.forEach(r => r.style.display = 'none');
-                return;
+
+            // When the itinerary is complete, show every room again (browsing only)
+            if (activeSlot < 0 || !roomSlots[activeSlot]) {
+                rooms.forEach(room => { room.style.display = 'flex'; });
+                if (alertBox) alertBox.style.display = 'none';
+            } else {
+                const cfg = roomSlots[activeSlot].plan;
+                const need = cfg.adults + cfg.children;
+                let anyVisible = false;
+
+                rooms.forEach(room => {
+                    const capacity = parseInt(room.dataset.capacity);
+                    if (capacity >= need) {
+                        room.style.display = 'flex';
+                        anyVisible = true;
+                    } else {
+                        room.style.display = 'none';
+                    }
+                });
+
+                if (!anyVisible) {
+                    alertBox.style.display = 'flex';
+                    alertText.innerText = `No rooms available for ${need} guests.`;
+                } else {
+                    alertBox.style.display = 'none';
+                }
             }
 
-            alertBox.style.display = 'none';
+            // Keep the priority ordering
+            Array.from(rooms)
+                .sort((a, b) => a.dataset.priority - b.dataset.priority)
+                .forEach(room => roomsList.appendChild(room));
+        }
 
-            // Convert NodeList to Array so we can sort them
-            let roomsArray = Array.from(rooms);
+        function updateMultiRoomBanner() {
+            const banner = document.getElementById('multiroom-banner');
+            if (searchTotalRooms > 1 && activeSlot >= 0 && roomSlots[activeSlot]) {
+                const cfg = roomSlots[activeSlot].plan;
+                const guests = cfg.adults + cfg.children; // pets excluded
+                banner.style.display = 'block';
+                banner.innerText =
+                    `Select Room ${activeSlot + 1} (of ${searchTotalRooms} rooms) — Needs space for ${guests} ${guests === 1 ? 'Guest' : 'Guests'}`;
+            } else {
+                banner.style.display = 'none';
+            }
+        }
 
-            roomsArray.forEach(room => {
-                const capacity = parseInt(room.dataset.capacity);
-                
-                if (totalGuests <= 2) {
-                    // Display all, but sort priority in CSS/JS
-                    room.style.display = 'flex';
-                } else if (totalGuests === 3 || totalGuests === 4) {
-                    // Only display 4-person rooms
-                    room.style.display = (capacity === 4) ? 'flex' : 'none';
-                }
-            });
-
-            // Re-order based on your priority list
-            roomsArray.sort((a, b) => a.dataset.priority - b.dataset.priority);
-            roomsArray.forEach(room => roomsList.appendChild(room));
+        // Rebuild the flat cart array (used by localStorage / booker_contact) from slots
+        function syncCartFromSlots() {
+            cart = roomSlots.filter(s => s.item).map(s => s.item);
+            if (cart.length > 0) {
+                localStorage.setItem('bookingCart', JSON.stringify(cart));
+            } else {
+                localStorage.removeItem('bookingCart');
+            }
         }
 
         // NEW LOGIC: This handles the blank cart on reload/fresh visit
@@ -787,6 +1257,9 @@
             } else {
                 localStorage.removeItem('bookingCart');
                 cart = [];
+                roomSlots = [];
+                searchTotalRooms = 1;
+                activeSlot = -1;
                 updateCartUI();
                 document.getElementById('cart-empty').style.display = 'block';
             }
@@ -803,111 +1276,255 @@
             }
         });
 
+        function showCartError(message) {
+            const errorBox = document.getElementById('cart-error');
+            errorBox.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> ${message}`;
+            errorBox.style.display = 'block';
+            errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => { errorBox.style.display = 'none'; }, 5000);
+        }
+
         function validateCartAndProceed() {
             const errorBox = document.getElementById('cart-error');
             const currentCart = JSON.parse(localStorage.getItem('bookingCart')) || [];
 
+            // Nothing selected at all
             if (currentCart.length === 0) {
-                errorBox.style.display = 'block';
-                errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                
-                setTimeout(() => {
-                    errorBox.style.display = 'none';
-                }, 4000);
-            } else {
-                errorBox.style.display = 'none';
-                
-                // CRITICAL UPDATE: Set this to true so beforeunload is ignored
-                isSubmitting = true; 
-                
-                window.location.href = '/booker_contact';
+                showCartError('Please select a room before pressing "RESERVE".');
+                return;
             }
+
+            // Multi-room itinerary not fully filled yet
+            if (roomSlots.length > 0 && !allRoomsSelected()) {
+                showCartError('You have not booked all rooms yet. Continue with room booking or change number of rooms.');
+                return;
+            }
+
+            errorBox.style.display = 'none';
+
+            // Verify with the server before proceeding (server-side price + availability)
+            isSubmitting = true;
+            verifyCartWithServer(currentCart)
+                .then(result => {
+                    if (result && result.valid) {
+                        window.location.href = '/booker_contact';
+                    } else {
+                        // Fail closed: block checkout and surface the reason in a modal
+                        isSubmitting = false;
+                        openReserveErrorModal(result && result.error);
+                    }
+                })
+                .catch(() => {
+                    // Server unreachable / bad response: block checkout, don't proceed
+                    isSubmitting = false;
+                    openReserveErrorModal();
+                });
+        }
+
+        function openReserveErrorModal(message) {
+            const modal = document.getElementById('reserve-error-modal');
+            const textEl = document.getElementById('reserve-error-text');
+            if (textEl) {
+                textEl.innerText = message ||
+                    'Selected dates/rooms could not be verified. Please refresh or contact support.';
+            }
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeReserveErrorModal() {
+            document.getElementById('reserve-error-modal').style.display = 'none';
+            document.body.style.overflow = '';
+        }
+
+        // Ask the Flask backend to re-price and re-check availability (never trust the client)
+        function verifyCartWithServer(currentCart) {
+            const checkin = document.getElementById('checkin').value;
+            const checkout = document.getElementById('checkout').value;
+            const payload = {
+                checkin: checkin,
+                checkout: checkout,
+                rooms: currentCart.map(i => ({
+                    name: i.name,
+                    adults: i.adults,
+                    children: i.children,
+                    pets: i.pets
+                }))
+            };
+            return fetch('/api/verify-cart', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(r => r.json());
         }
         
         function addToCart(name, pricePerNight) {
+            // Bootstrap a one-room itinerary if the guest books without searching first
+            if (roomSlots.length === 0) {
+                roomSlots = roomConfigs.map(r => ({ plan: { ...r }, item: null }));
+                searchTotalRooms = roomSlots.length;
+                activeSlot = 0;
+            }
+
+            // Ignore extra bookings once the itinerary is already complete
+            if (activeSlot < 0 || !roomSlots[activeSlot]) {
+                showCartError('All requested rooms are already selected. Remove one or increase the room count to add more.');
+                return;
+            }
+
+            const cfg = roomSlots[activeSlot].plan;
             const checkin = document.getElementById('checkin').value;
             const checkout = document.getElementById('checkout').value;
             const totalPrice = pricePerNight * globalNights;
-            
-            cart.push({
-                name: name, 
-                price: totalPrice, 
+
+            roomSlots[activeSlot].item = {
+                name: name,
+                price: totalPrice,
+                pricePerNight: pricePerNight,
                 nights: globalNights,
                 checkin: checkin,
                 checkout: checkout,
-                adults: counts.adults,
-                children: counts.children,
-                pets: counts.pets
-            });
-            
-            localStorage.setItem('bookingCart', JSON.stringify(cart));
+                adults: cfg.adults,
+                children: cfg.children,
+                pets: cfg.pets
+            };
+
+            syncCartFromSlots();
             updateCartUI();
             document.getElementById('cart-empty').style.display = 'none';
+
+            // Advance to the next unfilled room slot (or finish)
+            activeSlot = firstUnfilledSlot();
+            filterForCurrentRoom();
+            updateMultiRoomBanner();
         }
 
-        function removeFromCart(index) {
-            cart.splice(index, 1);
-            if (cart.length > 0) {
-                localStorage.setItem('bookingCart', JSON.stringify(cart));
-            } else {
-                localStorage.removeItem('bookingCart');
+        // Remove the room booked in a specific slot, then re-open that step so the
+        // guest re-selects it before the queue continues (other slots stay intact).
+        function removeSlot(slotIndex) {
+            if (!roomSlots[slotIndex]) return;
+            roomSlots[slotIndex].item = null;
+
+            syncCartFromSlots();
+            updateCartUI();
+            if (cart.length === 0) {
                 document.getElementById('cart-empty').style.display = 'block';
             }
-            updateCartUI();
+
+            // Re-open the just-removed room's step (lowest unfilled slot)
+            activeSlot = firstUnfilledSlot();
+            filterForCurrentRoom();
+            updateMultiRoomBanner();
         }
+
+        // Backwards-compatible alias (older markup / any external callers)
+        function removeFromCart(index) { removeSlot(index); }
 
         function updateCartUI() {
             const container = document.getElementById('cart-items');
+            const summary = document.getElementById('cart-summary');
             container.innerHTML = '';
             let grandTotal = 0;
-            
-            cart.forEach((item, index) => {
-                grandTotal += item.price;
+            let totalGuests = 0;
 
-                // Logic for Guest Summary String
+            // Render one entry per booked slot, labelled by its room number.
+            const source = roomSlots.length > 0
+                ? roomSlots.map((s, i) => ({ item: s.item, slot: i })).filter(e => e.item)
+                : cart.map((item, i) => ({ item: item, slot: i }));
+
+            source.forEach(({ item, slot }) => {
+                grandTotal += item.price;
+                totalGuests += (item.adults || 0) + (item.children || 0);
+
                 let guestParts = [];
-                
-                // Adult logic: 1 = Adult, >1 = Adults
                 if (item.adults > 0) {
                     guestParts.push(`${item.adults} ${item.adults === 1 ? 'Adult' : 'Adults'}`);
                 }
-
-                // Child logic: 1 = Child, >1 = Children
                 if (item.children > 0) {
                     guestParts.push(`${item.children} ${item.children === 1 ? 'Child' : 'Children'}`);
                 }
-                
-                // Pet logic: 1 = Pet, >1 = Pets
                 if (item.pets > 0) {
                     guestParts.push(`${item.pets} ${item.pets === 1 ? 'Pet' : 'Pets'}`);
                 }
                 const guestString = guestParts.join(', ');
+                const nightWord = item.nights === 1 ? 'night' : 'nights';
 
                 container.innerHTML += `
-                    <div class="cart-item border-bottom py-3">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div style="flex: 1;">
-                                <strong class="d-block mb-1">${item.name}</strong>
-                                <div class="small text-muted mb-1">
-                                    <i class="fa-solid fa-calendar-day me-1"></i> ${item.checkin} — ${item.checkout}
-                                </div>
-                                <div class="small text-muted mb-1">
-                                    <i class="fa-solid fa-user-group me-1"></i> ${guestString}
-                                </div>
-                                <small class="text-muted">${item.nights} Night stay</small>
-                            </div>
-                            <div class="text-end ms-3">
-                                <div class="fw-bold">$${item.price.toFixed(2)}</div>
-                                <button class="btn btn-link btn-sm text-danger p-0 border-0 mt-2" onclick="removeFromCart(${index})">Remove</button>
-                            </div>
+                    <div class="cart-item">
+                        <div class="ci-line ci-roomlabel-row">
+                            <span class="ci-roomlabel">Room ${slot + 1}</span>
+                            <button type="button" class="ci-remove" title="Remove room" aria-label="Remove room" onclick="removeSlot(${slot})">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
                         </div>
+                        <div class="ci-line ci-title-row">
+                            <span class="ci-title">${item.name}</span>
+                        </div>
+                        <div class="ci-line ci-occ-row">
+                            <span class="ci-occ">${guestString}</span>
+                            <span class="ci-price">$${item.price.toFixed(2)} CAD</span>
+                        </div>
+                        <span class="ci-duration">${item.nights} ${nightWord}</span>
                     </div>
                 `;
             });
-            document.getElementById('cart-total').innerText = `$${grandTotal.toFixed(2)}`;
+
+            // --- Tax calculation (single itinerary => one uniform stay length) ---
+            const count = source.length;
+            const base = grandTotal;                       // sum of room rate * nights
+            const nights = count > 0 ? source[0].item.nights : 0;
+            const gst = base * 0.05;                        // GST always 5%
+            const atlExempt = nights >= 28;                 // 28+ nights exempt from Alberta Tourism Levy
+            const atl = atlExempt ? 0 : base * 0.06;        // 6% when stay <= 27 nights
+            const grand = base + gst + atl;
+
+            const fmt = (n) => `$${n.toFixed(2)}`;
+
+            // Top summary now shows just the price, and the emphasized grand total sits at the bottom
+            document.getElementById('cart-total').innerText = fmt(grand);
+            document.getElementById('grand-total').innerText = fmt(grand);
+
+            // Tax accordion rows
+            document.getElementById('tax-gst').innerText = `${fmt(gst)} CAD`;
+            const atlRow = document.getElementById('tax-atl-row');
+            if (atlExempt) {
+                atlRow.style.display = 'none';              // hide ATL row entirely for 28+ night stays
+            } else {
+                atlRow.style.display = 'flex';
+                document.getElementById('tax-atl').innerText = `${fmt(atl)} CAD`;
+            }
+
+            if (count > 0) {
+                const first = source[0].item;
+                const nightWord = first.nights === 1 ? 'night' : 'nights';
+                document.getElementById('cart-dates').innerText = `${first.checkin} - ${first.checkout}`;
+                document.getElementById('cart-nights').innerText = `${first.nights} ${nightWord}`;
+                document.getElementById('cart-stats').innerText =
+                    `${count} ${count === 1 ? 'Room' : 'Rooms'}, ${totalGuests} ${totalGuests === 1 ? 'Guest' : 'Guests'}`;
+                summary.style.display = 'block';
+                document.getElementById('cart-grand').style.display = 'flex';
+                document.getElementById('cart-taxes').style.display = 'block';
+            } else {
+                summary.style.display = 'none';
+                document.getElementById('cart-grand').style.display = 'none';
+                document.getElementById('cart-taxes').style.display = 'none';
+            }
+        }
+
+        function toggleTaxes() {
+            const details = document.getElementById('tax-details');
+            const toggle = document.getElementById('tax-toggle');
+            const open = details.style.display === 'none' || details.style.display === '';
+            details.style.display = open ? 'block' : 'none';
+            toggle.classList.toggle('open', open);
         }
 
         // --- 5. MODALS & CALENDAR ---
+        function setSearchBarBlur(on) {
+            const card = document.querySelector('.search-card');
+            if (card) card.classList.toggle('blurred', on);
+        }
+
         function openModal(imgSrc) {
             const modal = document.getElementById("imageModal");
             const modalImg = document.getElementById("expandedImg");
@@ -915,6 +1532,8 @@
             modal.style.display = "flex"; 
             modal.style.alignItems = "center";
             modal.style.justifyContent = "center";
+            setSearchBarBlur(true); // blur the search banner behind the photo
+            document.body.style.overflow = "hidden"; // lock background scroll (same as amenities modal)
             setTimeout(() => {
                 modal.classList.add("show");
             }, 10);
@@ -923,77 +1542,300 @@
         function closeModal() {
             const modal = document.getElementById("imageModal");
             modal.classList.remove("show");
+            setSearchBarBlur(false);
+            document.body.style.overflow = "auto"; // restore scrolling
             setTimeout(() => {
                 modal.style.display = "none";
             }, 300);
         }
 
-        function startSearchWithLoader() {
+        function startSearchWithLoader(loadingText) {
             const loader = document.getElementById('search-loader');
+            const textEl = loader.querySelector('.loader-text');
+            if (textEl) textEl.innerText = loadingText || 'Loading';
             loader.style.display = 'flex';
             document.body.style.overflow = 'hidden';
-            setTimeout(() => {
-                performSearch(); // ← your existing logic
-                loader.style.display = 'none';
-                document.body.style.overflow = '';
-            }, 2000);
+            setSearchBarBlur(true); // blur the search banner while checking availability
+
+            const started = Date.now();
+            const hideLoader = () => {
+                const wait = Math.max(0, 600 - (Date.now() - started)); // avoid a jarring flash
+                setTimeout(() => {
+                    loader.style.display = 'none';
+                    document.body.style.overflow = '';
+                    setSearchBarBlur(false);
+                }, wait);
+            };
+
+            // Fast client-side filtering always runs first
+            performSearch();
+
+            // Then ask the server which room types are actually available for these dates
+            const checkin = document.getElementById('checkin').value;
+            const checkout = document.getElementById('checkout').value;
+            fetch('/api/availability', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ checkin: checkin, checkout: checkout })
+            })
+                .then(r => r.json())
+                .then(data => { if (data && data.valid) applyAvailability(data.available); })
+                .catch(() => { /* best-effort: leave listings as-is on network error */ })
+                .finally(hideLoader);
+        }
+
+        // Grey out + disable rooms the server reports as sold out for the chosen dates
+        function applyAvailability(available) {
+            if (!available) return;
+            document.querySelectorAll('.room-card').forEach(card => {
+                const name = card.dataset.room;
+                const btn = card.querySelector('.book-btn');
+                const remaining = available[name];
+                if (remaining !== undefined && remaining <= 0) {
+                    card.classList.add('sold-out');
+                    if (btn) {
+                        if (!btn.dataset.label) btn.dataset.label = btn.innerText;
+                        btn.innerText = 'Sold out';
+                        btn.disabled = true;
+                    }
+                } else {
+                    card.classList.remove('sold-out');
+                    if (btn) {
+                        if (btn.dataset.label) btn.innerText = btn.dataset.label;
+                        btn.disabled = false;
+                    }
+                }
+            });
         }
         
+        // --- DATES ---
         const today = new Date();
         const tomorrow = new Date(); tomorrow.setDate(today.getDate() + 1);
+        const dayAfter = new Date(); dayAfter.setDate(today.getDate() + 2);
         let globalNights = 1;
-        const checkinPicker = flatpickr("#checkin", { defaultDate: today, dateFormat: "j M Y", clickOpens: false });
-        const checkoutPicker = flatpickr("#checkout", { defaultDate: tomorrow, dateFormat: "j M Y", clickOpens: false });
 
+        const checkinPicker = flatpickr("#checkin", { defaultDate: tomorrow, dateFormat: "j M Y", clickOpens: false });
+        const checkoutPicker = flatpickr("#checkout", { defaultDate: dayAfter, dateFormat: "j M Y", clickOpens: false });
+
+        function fmtDate(d) {
+            // e.g. "Tue, 11 Aug"
+            return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+        }
+
+        // Build the inline calendar lazily (only once its popover is visible) so the
+        // multi-month day widths are measured correctly instead of collapsing to 0.
         let modalCalendar = null;
-        function openCalendar() { 
-            const modal = document.getElementById('calendar-modal');
-            modal.style.display = 'flex'; 
-            if (!modalCalendar) {
-                modalCalendar = flatpickr("#inline-calendar", {
-                    mode: "range", 
-                    inline: true, 
-                    showMonths: 2, 
-                    minDate: "today", 
-                    defaultDate: [today, tomorrow],
-                    onChange: function(dates, dateStr, instance) {
-                        if(dates.length === 2) {
-                            checkinPicker.setDate(dates[0]);
-                            checkoutPicker.setDate(dates[1]);
-                            const diffInMs = dates[1].getTime() - dates[0].getTime();
-                            globalNights = Math.ceil(diffInMs / (1000 * 60 * 60 * 24));
-                            document.getElementById('selected-dates-info').innerText = `${globalNights} Night(s) Selected`;
+        let lastAppliedDates = [tomorrow, dayAfter]; // the committed check-in/out range
+        let pendingDates = null;                      // range awaiting confirmation
+
+        function hasReservations() {
+            return (roomSlots.some(s => s.item)) || cart.length > 0;
+        }
+
+        function ymd(d) {
+            return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+        }
+        function sameRange(a, b) {
+            return a && b && a.length === 2 && b.length === 2 &&
+                   ymd(a[0]) === ymd(b[0]) && ymd(a[1]) === ymd(b[1]);
+        }
+
+        // Commit a chosen date range to the search bar / pickers (single itinerary)
+        function applyDateSelection(dates) {
+            checkinPicker.setDate(dates[0]);
+            checkoutPicker.setDate(dates[1]);
+            globalNights = Math.max(1, Math.ceil((dates[1].getTime() - dates[0].getTime()) / 86400000));
+            document.getElementById('nights-info').innerText = `Nights: ${globalNights}`;
+            document.getElementById('dates-value').innerText = `${fmtDate(dates[0])} → ${fmtDate(dates[1])}`;
+            lastAppliedDates = [dates[0], dates[1]];
+        }
+
+        function ensureCalendar() {
+            if (modalCalendar) return;
+            modalCalendar = flatpickr("#inline-calendar", {
+                mode: "range",
+                inline: true,
+                showMonths: 3,
+                minDate: "today",
+                defaultDate: [tomorrow, dayAfter],
+                onChange: function(dates) {
+                    if (dates.length === 2) {
+                        // Changing dates with rooms already in the cart requires
+                        // confirmation, because it clears the itinerary.
+                        if (hasReservations() && !sameRange(dates, lastAppliedDates)) {
+                            pendingDates = [dates[0], dates[1]];
+                            openDateChangeModal();
+                            return;
                         }
+                        applyDateSelection(dates);
                     }
-                });
-            } else {
-                // If it already exists, just refresh it
-                modalCalendar.redraw();
-            }
-        }
-        
-        function closeCalendar() { 
-            document.getElementById('calendar-modal').style.display = 'none'; 
+                }
+            });
         }
 
-        let counts = { adults: 2, children: 0, pets: 0 };
-        function togglePopup() { const p = document.getElementById('guest-popup'); p.style.display = (p.style.display==='block'?'none':'block'); }
-        function changeCount(type, delta) {
-            counts[type] = Math.max((type==='adults'?1:0), counts[type] + delta);
-            document.getElementById(type + '-count').innerText = counts[type];
-            function pluralize(count, singular, plural) {
-            return `${count} ${count === 1 ? singular : plural}`;
-            }
-            document.getElementById('guest-summary').innerText =
-            pluralize(counts.adults, 'Adult', 'Adults') +
-            (counts.children > 0 ? ', ' + pluralize(counts.children, 'Child', 'Children') : '') +
-            (counts.pets > 0 ? ', ' + pluralize(counts.pets, 'Pet', 'Pets') : '');
+        // --- DATE CHANGE CONFIRMATION MODAL ---
+        function openDateChangeModal() {
+            document.getElementById('date-change-modal').style.display = 'flex';
+        }
+        function closeDateChangeModal() {
+            document.getElementById('date-change-modal').style.display = 'none';
         }
 
-        window.onclick = function(e) { 
-            if(!e.target.closest('.search-item')) document.getElementById('guest-popup').style.display = 'none'; 
+        function cancelDateChange() {
+            // Revert the calendar back to the committed range; keep the cart intact
+            if (modalCalendar) modalCalendar.setDate(lastAppliedDates, false);
+            pendingDates = null;
+            closeDateChangeModal();
+        }
+
+        function confirmDateChange() {
+            if (pendingDates) {
+                applyDateSelection(pendingDates);
+                pendingDates = null;
+            }
+            closeDateChangeModal();
+
+            // Clear the selected rooms and re-run the search for the new dates
+            roomSlots = [];
+            searchTotalRooms = 1;
+            activeSlot = -1;
+            cart = [];
+            localStorage.removeItem('bookingCart');
+            updateCartUI();
+            document.getElementById('cart-empty').style.display = 'block';
+
+            closeAllPopovers();
+            startSearchWithLoader('Loading...');
+        }
+
+        function applyDates() { closeAllPopovers(); }
+
+        function resetDates() {
+            ensureCalendar();
+            modalCalendar.setDate([tomorrow, dayAfter], true);
+            globalNights = 1;
+            document.getElementById('nights-info').innerText = 'Nights: 1';
+            document.getElementById('dates-value').innerText = `${fmtDate(tomorrow)} → ${fmtDate(dayAfter)}`;
+        }
+
+        // --- FIELD POPOVERS (immediate border highlight + 0.5s delay, then open) ---
+        function toggleField(fieldEl, popId) {
+            const pop = document.getElementById(popId);
+            if (pop.style.display === 'block') {
+                pop.style.display = 'none';
+                fieldEl.classList.remove('field-active');
+                return;
+            }
+            closeAllPopovers();
+            fieldEl.classList.add('field-active'); // #ff5778 border stays while popover is open
+            setTimeout(function() {
+                pop.style.display = 'block';
+                if (popId === 'calendar-popover') {
+                    ensureCalendar();      // build now that the container is visible
+                    modalCalendar.redraw(); // re-measure day widths on every open
+                }
+            }, 100);
+        }
+
+        function closeAllPopovers() {
+            document.querySelectorAll('.field-popover').forEach(p => p.style.display = 'none');
+            document.querySelectorAll('.search-field').forEach(f => f.classList.remove('field-active'));
+        }
+
+        // --- ROOMS & GUESTS SELECTOR (multi-room) ---
+        let roomConfigs = [{ adults: 2, children: 0, pets: 0 }];
+
+        function renderRoomConfigs() {
+            const list = document.getElementById('rooms-config-list');
+            let html = `
+                <div class="guests-grid">
+                    <div class="gg-head"></div>
+                    <div class="gg-head"><div class="gg-title">Adults</div><div class="gg-sub">Ages 18 or more</div></div>
+                    <div class="gg-head"><div class="gg-title">Children</div><div class="gg-sub">Ages 17 or under</div></div>
+                    <div class="gg-head"><div class="gg-title">Pets</div><div class="gg-sub">Pets are welcome!</div></div>`;
+
+            roomConfigs.forEach((rc, idx) => {
+                const humans = rc.adults + rc.children;
+                const atMax = humans >= 4; // 4 humans max per room; pets don't count
+                html += `
+                    <div class="gg-roomlabel">
+                        Room ${idx + 1}
+                        ${roomConfigs.length > 1
+                            ? `<button type="button" class="remove-room-btn" title="Remove room" onclick="removeRoom(${idx})"><i class="fa-solid fa-trash"></i></button>`
+                            : ''}
+                    </div>
+                    ${stepper(idx, 'adults', rc.adults, rc.adults <= 0, atMax)}
+                    ${stepper(idx, 'children', rc.children, rc.children <= 0, atMax)}
+                    ${stepper(idx, 'pets', rc.pets, rc.pets <= 0, rc.pets >= 5)}`;
+            });
+
+            html += `</div>`;
+            list.innerHTML = html;
+
+            // Cap total rooms at 5: fade + disable the "Add additional room" button
+            const addBtn = document.getElementById('add-room-btn');
+            if (addBtn) {
+                const atMaxRooms = roomConfigs.length >= 5;
+                addBtn.disabled = atMaxRooms;
+                addBtn.style.opacity = atMaxRooms ? '0.5' : '';
+                addBtn.style.cursor = atMaxRooms ? 'not-allowed' : '';
+                addBtn.style.pointerEvents = atMaxRooms ? 'none' : '';
+            }
+        }
+
+        function stepper(idx, type, val, minusDisabled, plusDisabled) {
+            return `
+                <div class="stepper">
+                    <button type="button" class="step-btn" ${minusDisabled ? 'disabled' : ''} onclick="changeRoomCount(${idx}, '${type}', -1)">−</button>
+                    <span class="step-val">${val}</span>
+                    <button type="button" class="step-btn" ${plusDisabled ? 'disabled' : ''} onclick="changeRoomCount(${idx}, '${type}', 1)">+</button>
+                </div>`;
+        }
+
+        function changeRoomCount(idx, type, delta) {
+            const rc = roomConfigs[idx];
+            const humans = rc.adults + rc.children;
+            // Block increment once the 4-human cap is reached (pets exempt)
+            if (delta > 0 && (type === 'adults' || type === 'children') && humans >= 4) return;
+            // Block increment once the 5-pet cap is reached
+            if (delta > 0 && type === 'pets' && rc.pets >= 5) return;
+            rc[type] = Math.max(0, rc[type] + delta);
+            renderRoomConfigs();
+        }
+
+        function addRoom() {
+            // Hard cap of 5 rooms per booking
+            if (roomConfigs.length >= 5) return;
+            roomConfigs.push({ adults: 2, children: 0, pets: 0 });
+            renderRoomConfigs();
+        }
+
+        function removeRoom(idx) {
+            roomConfigs.splice(idx, 1);
+            renderRoomConfigs();
+        }
+
+        function applyGuests() {
+            updateGuestsLabel();
+            closeAllPopovers();
+        }
+
+        function updateGuestsLabel() {
+            const totalRooms = roomConfigs.length;
+            const totalGuests = roomConfigs.reduce((s, r) => s + r.adults + r.children, 0);
+            document.getElementById('guests-value').innerText =
+                `${totalRooms} ${totalRooms === 1 ? 'Room' : 'Rooms'}, ${totalGuests} ${totalGuests === 1 ? 'Guest' : 'Guests'}`;
+        }
+
+        // --- INITIAL RENDER ---
+        document.getElementById('dates-value').innerText = `${fmtDate(tomorrow)} → ${fmtDate(dayAfter)}`;
+        renderRoomConfigs();
+        updateGuestsLabel();
+
+        window.onclick = function(e) {
+            if (!e.target.closest('.search-card')) closeAllPopovers();
             var modal = document.getElementById("amenities-modal");
-            if (event.target == modal) { closeAmenitiesModal(); }
+            if (e.target == modal) { closeAmenitiesModal(); }
         }
 
         function openAmenitiesModal(contentId) {
@@ -1004,15 +1846,40 @@
                 body.innerHTML = sourceData.innerHTML; // Copies the hidden emoji grid into the popup
                 modal.style.display = "block";
                 document.body.style.overflow = "hidden"; // Prevents background scrolling
+                setSearchBarBlur(true); // grey/blur the search bar behind the modal
             }
         }
 
         function closeAmenitiesModal() {
             document.getElementById("amenities-modal").style.display = "none";
             document.body.style.overflow = "auto";
+            setSearchBarBlur(false);
         }
 
     </script>
+
+    <!-- Date Change Confirmation Modal -->
+    <div id="date-change-modal">
+        <div class="confirm-card">
+            <h3>Update Booking Dates?</h3>
+            <p>Changing your stay dates will clear your currently selected rooms so we can verify inventory for the new dates.</p>
+            <div class="confirm-actions">
+                <button type="button" class="confirm-cancel" onclick="cancelDateChange()">Cancel</button>
+                <button type="button" class="confirm-proceed" onclick="confirmDateChange()">Clear &amp; Continue</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reserve Verification Error Modal -->
+    <div id="reserve-error-modal">
+        <div class="confirm-card">
+            <h3>Unable to verify availability</h3>
+            <p id="reserve-error-text">Selected dates/rooms could not be verified. Please refresh or contact support.</p>
+            <div class="confirm-actions">
+                <button type="button" class="confirm-proceed" onclick="closeReserveErrorModal()">Got it</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Amenities Modal -->
     <div id="amenities-modal" class="modal">
@@ -1199,6 +2066,16 @@
             <li>&copy; Untitled. All rights reserved.</li><li>Design: <a href="http://html5up.net">HTML5 UP</a></li>
         </ul>
     </footer>
+
+    <!-- Room photo modal (kept at top level so its backdrop covers the whole page, incl. the search bar) -->
+    <div id="imageModal" onclick="closeModal()">
+        <div class="inline-wrapper" onclick="event.stopPropagation()">
+            <img class="image-modal-img" id="expandedImg">
+            <button class="close-image-btn" onclick="closeModal()" aria-label="Close image">
+                &times;
+            </button>
+        </div>
+    </div>
 
     <script src="/static/assets/js/enhancements.js"></script>
 </body>

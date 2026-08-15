@@ -1,4 +1,8 @@
 .env
+.env.*
+!.env.example
 *.db
 __pycache__/
 .DS_Store
+venv/
+server.log

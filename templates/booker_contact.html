@@ -13,34 +13,6 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
         }
 
-        /* --- Payment Section Styling --- */
-        .card-icons {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-        .card-icons img {
-            height: 32px;
-            width: auto;
-            filter: grayscale(20%);
-            opacity: 0.9;
-        }
-        .expiry-cvv-row {
-            display: flex;
-            gap: 15px;
-        }
-        .expiry-cvv-row > div {
-            flex: 1;
-        }
-
-        /* Help icon for CVV */
-        .cvv-help {
-            cursor: help;
-            color: #333;
-            font-size: 1.1rem;
-            margin-left: 5px;
-        }
-
         /* Validation Icon specifically for inputs */
         .input-wrapper .error-icon {
             right: 10px;
@@ -63,8 +35,19 @@
             color: #d4111e;
             font-size: 13px;
             margin-top: 4px;
+            padding-top: 0;
             display: none; /* Hidden by default */
         }
+
+        /* Tighten the gap between inputs and their error text
+           (overrides enhancements.css input { margin-bottom: 1rem }) */
+        .card input,
+        .card select,
+        .card textarea,
+        .card .iti {
+            margin-bottom: 4px !important;
+        }
+        .card .input-wrapper { margin-bottom: 0; }
 
         /* Alert Icon on the right */
         .error-icon {
@@ -114,9 +97,9 @@
             width: 100% !important;
         }
 
-        /* Hide the arrow if you want a cleaner look, or style it to match the video */
+        /* Remove the caret/triangle arrow beside the flag for a cleaner field */
         .iti__arrow {
-            margin-left: auto; /* Pushes the arrow to the far right */
+            display: none !important;
         }
 
         /* Fix for Country Select overlap and clickability */
@@ -126,28 +109,93 @@
             color: #333;
         }
 
-        /* Make the flag container cover the whole input area so the whole box is clickable */
-        .iti--allow-dropdown #country-select {
-            pointer-events: none; /* Let clicks pass through to the ITI container */
-        }
-        .iti--allow-dropdown {
-            pointer-events: auto;
+        /* ===== Country field: make the WHOLE box open the dropdown ===== */
+        .country-only-dropdown { position: relative; cursor: pointer; }
+        .country-only-dropdown .iti { width: 100%; cursor: pointer; }
+
+        /* The visible text input must not capture clicks — let them fall through
+           to the country button that overlays the field. */
+        .country-only-dropdown #country-select {
+            pointer-events: none;
             cursor: pointer;
         }
 
-        /* Make the flag container invisible but full width so clicking anywhere opens the list */
+        /* intl-tel-input v25: the clickable trigger is the .iti__selected-country
+           button inside .iti__country-container. Stretch it over the entire field. */
+        .country-only-dropdown .iti__country-container {
+            width: 100% !important;
+            height: 100% !important;
+            top: 0; left: 0;
+            z-index: 2;                 /* above the input so it receives the click */
+        }
+        .country-only-dropdown .iti__selected-country {
+            width: 100% !important;
+            height: 100% !important;
+            justify-content: flex-start;
+            background: transparent !important;
+            cursor: pointer;
+        }
+
+        /* Decorative bits inside the button pass clicks through to the button */
+        .country-only-dropdown .iti__selected-country-primary,
+        .country-only-dropdown .iti__flag,
+        .country-only-dropdown .iti__arrow {
+            pointer-events: none;
+        }
+
+        /* Backward-compat with older intl-tel-input markup (.iti__selected-flag) */
         .country-only-dropdown .iti__selected-flag {
             width: 100%;
             background: transparent !important;
         }
 
+        /* Hover shading to signal interactability */
+        .country-only-dropdown #country-select { transition: background-color 0.2s ease; }
+        .country-only-dropdown:hover #country-select { background-color: #f3f4f6; }
+
+        /* Lock the flag icon in a fixed spot so it never shifts/bounces on
+           click/focus (no padding/transition-driven jump). */
+        .country-only-dropdown .iti__selected-country {
+            position: relative;              /* anchor for the pinned flag */
+        }
+        .country-only-dropdown .iti__selected-country,
+        .country-only-dropdown .iti__selected-country-primary {
+            padding: 0 !important;
+            margin: 0 !important;
+            transition: none !important;
+            transform: none !important;
+        }
+        /* Pin ONLY the selected flag to the far left (do NOT touch dropdown-list flags) */
+        .country-only-dropdown .iti__selected-country .iti__flag {
+            position: absolute !important;
+            left: 12px !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            margin: 0 !important;
+            transition: none !important;
+        }
+        /* Text starts after the pinned flag */
+        .country-only-dropdown #country-select { padding-left: 40px !important; }
+
+        /* Dropdown list: show country names only, hide dial/area codes */
+        .country-only-dropdown .iti__dial-code { display: none !important; }
+        /* Keep the dropdown-list flags in normal flow (undo any global positioning) */
+        .country-only-dropdown .iti__country-list .iti__flag {
+            position: static !important;
+            transform: none !important;
+        }
+
         /* --- UI Elements --- */
-        .card { 
-            border-radius: 8px; 
-            border: 1px solid #e6e6e6; 
-            margin-bottom: 16px; 
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05); 
-            background: white;
+        .card,
+        .card:hover,
+        .card.p-3, .card.p-4,
+        .card.p-3:hover, .card.p-4:hover {
+            border-radius: 8px;
+            border: 1px solid #868e96 !important;   /* static dark gray outline */
+            margin-bottom: 16px;
+            box-shadow: none !important;            /* no shadow / gradient / fade */
+            background: white !important;
+            transition: none !important;
         }
 
         label { font-weight: 600; font-size: 14px; margin-top: 15px; display: block; }
@@ -160,23 +208,30 @@
         }
 
         .info-box { 
-            background: #f0f6ff; 
-            border: 1px solid #006ce4; 
+            background: #ff91a7; 
+            border: 1px solid #ff5778; 
             padding: 12px; 
             border-radius: 4px; 
             display: flex; 
             align-items: center; 
+            color: #ffffff;
         }
+        .info-box i { color: #ffffff !important; }
 
         .btn-next { 
-            background: #006ce4; 
+            background: #ff5778; 
             color: white; 
             padding: 12px 30px; 
             border-radius: 4px; 
             border: none; 
             font-weight: bold; 
             width: 100%; 
-            transition: background 0.2s;
+            transition: background-color 0.2s ease;
+        }
+        .btn-next:hover, .btn-next:focus {
+            background-color: #D63683 !important;   /* matching dark pink on hover */
+            transform: none !important;
+            box-shadow: none !important;
         }
 
         /* --- Stepper Navigation --- */
@@ -185,17 +240,32 @@
         .step-item { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 700; white-space: nowrap; color: #333; }
         .step-line { flex-grow: 1; height: 1px; background-color: #868686; margin: 0 15px; }
         .step-number { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 1px solid #868686; color: #868686; }
-        .step-active .step-number { background-color: #006ce4; border-color: #006ce4; color: white; }
-        .step-active .step-icon { color: #006ce4; font-size: 24px; }
-        .step-active { color: #006ce4; }
+        .step-active .step-number { background-color: #ff5778; border-color: #ff5778; color: white; }
+        .step-active .step-icon { color: #ff5778; font-size: 24px; }
+        .step-active { color: #ff5778; }
+        .step-line-active { background-color: #ff5778; }
+
+        /* Price breakdown trigger: no underline, pink on hover */
+        .clickable-trigger { cursor: pointer; text-decoration: none; transition: color 0.2s ease; }
+        .clickable-trigger:hover { color: #ff5778 !important; }
+
+        /* Edit your selection: matches "Next" button — pink fill, white text, darker pink on hover */
+        .edit-selection-btn { transition: background-color 0.2s ease; }
+        .edit-selection-btn:hover,
+        .edit-selection-btn:focus {
+            background-color: #D63683 !important;
+            color: #ffffff !important;
+            border: none !important;
+        }
         .text-muted { color: #868686 !important; }
 
         /* --- Drawers --- */
         .clickable-trigger { cursor: pointer; text-decoration: none; }
-        .clickable-trigger:hover { color: #006ce4; }
+        .clickable-trigger:hover { color: #ff5778; }
         .breakdown-drawer { display: none; background: #fdfdfd; padding: 8px 0; font-size: 0.8rem; }
         .breakdown-row { display: flex; justify-content: space-between; color: #666; margin-bottom: 2px; }
         .small-text { font-size: 0.85rem; font-family: Arial, sans-serif; color: #6c757d; }
+        .email-subtext { margin-top: -10px; margin-bottom: 0; }
 
         /* Fix for Telephone overlap */
         #phone {
@@ -221,8 +291,8 @@
     <div class="stepper-bar">
         <div class="container">
             <div class="stepper-container">
-                <div class="step-item step-active"><i class="fa-solid fa-circle-check step-icon"></i><span>Your selection</span></div>
-                <div class="step-line"></div>
+                <div class="step-item step-active"><div class="step-number">1</div><span>Your selection</span></div>
+                <div class="step-line step-line-active"></div>
                 <div class="step-item step-active"><div class="step-number">2</div><span>Your details</span></div>
                 <div class="step-line"></div>
                 <div class="step-item text-muted"><div class="step-number">3</div><span>Finish booking</span></div>
@@ -245,24 +315,37 @@
                 </div>
 
                 <div class="card p-3">
-                    <h5 class="mb-0">Your booking details</h5>
+                    <h5 class="mb-1">Your Reservation</h5>
+
+                    <div id="summary-dates" class="text-muted small mb-2"></div>
 
                     <div id="dynamic-rooms-list"></div>
 
                     <div class="mt-3 pt-3 border-top">
-                        <div class="d-flex justify-content-between">
-                            <h6 class="mb-0">Total (including taxes)</h6>
-                            <h6 id="summary-grand-total">CAD 0.00</h6>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Subtotal</span>
+                            <span id="summary-subtotal">$0.00 CAD</span>
                         </div>
-                        <div class="d-flex justify-content-between small mt-1">
-                            <h6 class="mb-0 text-muted">Payment at Booking</h6>
-                            <h6 class="text-muted">CAD 0.00</h6>
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span>GST (5%)</span>
+                            <span id="summary-gst">$0.00 CAD</span>
                         </div>
+                        <div class="d-flex justify-content-between small mb-1" id="summary-atl-row">
+                            <span>Alberta Tourism Levy (6%)</span>
+                            <span id="summary-atl">$0.00 CAD</span>
+                        </div>
+                        <div class="d-flex justify-content-between pt-2 mt-1 border-top">
+                            <h6 class="mb-0 fw-bold">Total</h6>
+                            <h6 class="mb-0 fw-bold" id="summary-grand-total">$0.00 CAD</h6>
+                        </div>
+                        <p class="text-muted small mb-0 mt-3">
+                            No upfront payment required today. All room charges and fees will be collected in person at check-in or check-out.
+                        </p>
                     </div>
                 </div>
-                <button type="button" class="btn btn-outline-secondary w-100 mt-3 py-2 fw-bold" 
+                <button type="button" class="btn edit-selection-btn w-100 mt-3 py-2 fw-bold" 
                         onclick="location.href='/booking'" 
-                        style="border: 1px solid #e4e4e4; color: #333; background: white;">
+                        style="border: none; color: #ffffff; background: #ff5778;">
                     <i class="fa-solid fa-chevron-left me-2"></i> Edit your selection
                 </button>
             </div>
@@ -276,7 +359,7 @@
                         <div class="col-md-6">
                             <label>First name *</label>
                             <div class="input-wrapper">
-                                <input type="text" id="first_name" required>
+                                <input type="text" id="first_name" maxlength="100" required>
                                 <i class="fa-solid fa-circle-exclamation error-icon"></i>
                             </div>
                             <div class="error-message" id="error-first_name">Please fill in your first name</div>
@@ -284,34 +367,29 @@
                         <div class="col-md-6">
                             <label>Last name *</label>
                             <div class="input-wrapper">
-                                <input type="text" id="last_name" required>
+                                <input type="text" id="last_name" maxlength="100" required>
                                 <i class="fa-solid fa-circle-exclamation error-icon"></i>
                             </div>
                             <div class="error-message" id="error-last_name">Please fill in your last name</div>
                         </div>
                     </div>
 
-                    <label>Email address *</label>
-                    <div class="input-wrapper">
-                        <input type="email" id="email" required>
-                        <i class="fa-solid fa-circle-exclamation error-icon"></i>
-                    </div>
-                    <div class="error-message" id="error-email">Please fill in your email address</div>
-                    <p class="small-text">Confirmation email goes to this address</p>         
-                    
-                    <div class="mt-4">
-                        <label class="mb-2">Who are you booking for? (optional)</label>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="bookingFor" id="preferNotToSay" style="width: 1.2em; height: 1.2em; margin-top: 0.15em;">
-                            <label class="form-check-label ms-2 mt-0" for="someoneElse" style="font-weight: 400;">Prefer not to say</label>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label>Email address (for Confirmation email) *</label>
+                            <div class="input-wrapper">
+                                <input type="email" id="email" maxlength="100" required>
+                                <i class="fa-solid fa-circle-exclamation error-icon"></i>
+                            </div>
+                            <div class="error-message" id="error-email">Please fill in your email address</div>
                         </div>
-                        <div class="form-check mb-2">
-                            <input class="form-check-input" type="radio" name="bookingFor" id="mainGuest" checked style="width: 1.2em; height: 1.2em; margin-top: 0.15em;">
-                            <label class="form-check-label ms-2 mt-0" for="mainGuest" style="font-weight: 400;">I am the main guest</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="bookingFor" id="bookingForSomeoneElse" style="width: 1.2em; height: 1.2em; margin-top: 0.15em;">
-                            <label class="form-check-label ms-2 mt-0" for="someoneElse" style="font-weight: 400;">I am booking for someone else</label>
+                        <div class="col-md-6">
+                            <label>Phone number *</label>
+                            <div class="input-wrapper">
+                                <input type="phone" id="phone" required>
+                                <i class="fa-solid fa-circle-exclamation error-icon"></i>
+                            </div>
+                            <div class="error-message" id="error-phone">Please fill in your phone number</div>
                         </div>
                     </div>
                 </div>
@@ -322,7 +400,7 @@
                         <div class="col-12">
                             <label>Address *</label>
                             <div class="input-wrapper">
-                                <input type="address" id="address" required>
+                                <input type="text" id="address" maxlength="100" required>
                                 <i class="fa-solid fa-circle-exclamation error-icon"></i>
                             </div>
                             <div class="error-message" id="error-address">Please fill in your address</div>
@@ -332,101 +410,24 @@
                         <div class="col-md-6">
                             <label>City *</label>
                             <div class="input-wrapper">
-                                <input type="city" id="city" required>
+                                <input type="text" id="city" maxlength="100" required>
                                 <i class="fa-solid fa-circle-exclamation error-icon"></i>
                             </div>
                             <div class="error-message" id="error-city">Please fill in your city</div>
                         </div>
                         <div class="col-md-6">
-                            <label>State / Province (optional)</label>
-                            <input type="text" id="state_province">
-                        </div>
-                    </div>
-                    
-                    <label>Country/region *</label>
-                    <div class="country-only-dropdown">
-                        <input type="text" id="country-select" class="custom-input-style" placeholder="Select your country">
-                    </div>
-
-                    <label>Phone number *</label>
-                    <div class="input-wrapper">
-                        <input type="phone" id="phone" required>
-                        <i class="fa-solid fa-circle-exclamation error-icon"></i>
-                    </div>
-                    <div class="error-message" id="error-phone">Please fill in your phone number</div>
-                </div>
-
-                <div class="card p-4 mt-3">
-                    <h5 class="mb-3">Payment Option</h5>
-                    <div class="card-icons">
-                        <img src="https://img.icons8.com/color/48/000000/mastercard.png" id="icon-mastercard" alt="Mastercard">
-                        <img src="https://img.icons8.com/color/48/000000/amex.png" id="icon-amex" alt="AMEX">
-                        <img src="https://img.icons8.com/color/48/000000/visa.png" id="icon-visa" alt="VISA">
-                    </div>
-
-                    <div class="mb-3">
-                        <label>Cardholder's Name *</label>
-                        <div class="input-wrapper">
-                            <input type="text" id="card_name" placeholder="Name as on card" autocomplete="cc-name">
-                            <i class="fa-solid fa-circle-exclamation error-icon"></i>
-                        </div>
-                        <div class="error-message" id="error-card_name">Enter the cardholder's name</div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label>Card Number *</label>
-                        <div class="input-wrapper">
-                            <input type="text" id="card_number" placeholder="0000 0000 0000 0000" maxlength="23" autocomplete="cc-number">
-                            <i class="fa-solid fa-circle-exclamation error-icon"></i>
-                        </div>
-                        <div class="error-message" id="error-card_number">This card number is not valid.</div>
-                    </div>
-
-                    <div class="expiry-cvv-row">
-                        <div>
-                            <label>Expiry Date *</label>
-                            <div class="input-wrapper">
-                                <input type="text" id="expiry" placeholder="MM / YY" maxlength="7" autocomplete="cc-exp">
-                                <i class="fa-solid fa-circle-exclamation error-icon"></i>
+                            <label>Country *</label>
+                            <div class="country-only-dropdown">
+                                <input type="text" id="country-select" class="custom-input-style" placeholder="Select your country">
                             </div>
-                            <div class="error-message" id="error-expiry">Please enter a valid expiry date.</div>
-                        </div>
-                        <div>
-                            <label>CVC * <i class="fa-regular fa-circle-question cvv-help" title="3 or 4 digit code on the back"></i></label>
-                            <div class="input-wrapper">
-                                <input type="text" id="cvc" placeholder="000" maxlength="4" autocomplete="cc-csc">
-                                <i class="fa-solid fa-circle-exclamation error-icon"></i>
-                            </div>
-                            <div class="error-message" id="error-cvc">Please enter a valid CVV.</div>
                         </div>
                     </div>
-                </div>
-
-                <div class="card p-4 mt-3">
-                    <h5>Your arrival time</h5>
-                    
-                    <div class="d-flex align-items-center gap-2 mb-0">
-                        <p class="small-text">You can check in between 3:00PM and 9:00PM</p>
-                    </div>
-
-                    <label class="mb-2">Add your estimated arrival time (optional)</label>
-                    <select class="form-select custom-input-style" id="arrival_time" style="cursor: pointer;">
-                        <option value="" selected>Please select</option>
-                        <option value="3:00PM - 4:00PM">3:00PM - 4:00PM</option>
-                        <option value="4:00PM - 5:00PM">4:00PM - 5:00PM</option>
-                        <option value="5:00PM - 6:00PM">5:00PM - 6:00PM</option>
-                        <option value="6:00PM - 7:00PM">6:00PM - 7:00PM</option>
-                        <option value="7:00PM - 8:00PM">7:00PM - 8:00PM</option>
-                        <option value="8:00PM - 9:00PM">8:00PM - 9:00PM</option>
-                        <option value="I don't know">I don't know</option>
-                    </select>
-                    <p class="small-text mt-2">The property will do its best to have your room ready when you arrive.</p>
                 </div>
 
                 <div class="card p-4 mt-3">
                     <h5>Special requests</h5>
                     <p class="small-text">Special requests cannot be guaranteed – but the property will do its best to meet your needs. You can always make a special request after your booking is complete!</p>  
-                    <p class="small-text">Please write your requests in English or French. (optional)</p>  
+                    <p class="small-text">Please write your requests in English.</p>  
                     <textarea rows="4" id="special_requests" placeholder="Optional requests..."></textarea>
                 </div>
 
@@ -449,16 +450,14 @@
             }
 
             const roomContainer = document.getElementById('dynamic-rooms-list');
-            let grandTotal = 0;
+            const money = (n) => `$${n.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} CAD`;
+            let subtotal = 0;
 
             if (cartData.length > 0) {
-                roomContainer.innerHTML = ''; 
+                roomContainer.innerHTML = '';
                 cartData.forEach((room, index) => {
-                    const gst = room.price * 0.05;
-                    const tourismLevy = room.price * 0.04;
-                    const roomTotalTaxes = gst + tourismLevy;
                     const pricePerNight = room.price / room.nights;
-                    grandTotal += (room.price + roomTotalTaxes);
+                    subtotal += room.price;
 
                     // Logic for Guest String: Handles Adults, and optionally Children and Pets
                     let guestParts = [];
@@ -471,54 +470,52 @@
                         <div class="py-3 border-top">
                             <div class="d-flex justify-content-between align-items-start mb-2">
                                 <div>
-                                    <strong style="text-transform: uppercase; color: #006ce4;">Room ${index + 1}</strong><br>
+                                    <strong style="text-transform: uppercase; color: #ff5778;">Room ${index + 1}</strong><br>
                                     <span class="fw-bold">${room.name}</span>
                                 </div>
-                                <div class="text-end small fw-bold">CAD ${room.price.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
-                            </div>
-
-                            <div class="row g-0 mb-2 small">
-                                <div class="col-5">
-                                    <span class="text-muted d-block" style="font-size: 11px;">Check-in</span>
-                                    <strong>${room.checkin}</strong>
-                                </div>
-                                <div class="col-2 text-center align-self-end">
-                                    <span class="badge bg-light text-dark border" style="font-weight:normal;">
-                                        ${room.nights} ${room.nights === 1 ? 'night' : 'nights'}
-                                    </span>
-                                </div>
-                                <div class="col-5 text-end">
-                                    <span class="text-muted d-block" style="font-size: 11px;">Check-out</span>
-                                    <strong>${room.checkout}</strong>
-                                </div>
+                                <div class="text-end small fw-bold">${money(room.price)}</div>
                             </div>
 
                             <div class="d-flex justify-content-between align-items-center">
-                                <span class="small border-bottom border-dark clickable-trigger" onclick="toggleDrawer('room${index}-nights')">Base Price Breakdown</span>
+                                <span class="small clickable-trigger" onclick="toggleDrawer('room${index}-nights')">Base Price Breakdown</span>
                                 <span class="small text-muted">${guestString}</span>
                             </div>
 
                             <div id="room${index}-nights" class="breakdown-drawer">
                                 <div class="breakdown-row">
-                                    <span>${room.nights} nights x CAD ${pricePerNight.toFixed(2)}</span>
-                                    <span>CAD ${room.price.toFixed(2)}</span>
+                                    <span>${room.nights} nights x ${money(pricePerNight)}</span>
+                                    <span>${money(room.price)}</span>
                                 </div>
-                            </div>
-
-                            <div class="d-flex justify-content-between mt-1">
-                                <span class="small border-bottom border-dark clickable-trigger" onclick="toggleDrawer('room${index}-taxes')">Taxes and fees</span>
-                                <span class="small">CAD ${roomTotalTaxes.toFixed(2)}</span>
-                            </div>
-                            
-                            <div id="room${index}-taxes" class="breakdown-drawer">
-                                <div class="breakdown-row"><span>5% GST</span><span>CAD ${gst.toFixed(2)}</span></div>
-                                <div class="breakdown-row"><span>4% Tourism Levy</span><span>CAD ${tourismLevy.toFixed(2)}</span></div>
                             </div>
                         </div>`;
                 });
             }
 
-            document.getElementById('summary-grand-total').innerText = `CAD ${grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            // Unified stay dates shown once at the top of the reservation box
+            const first = cartData[0];
+            const nights = first ? first.nights : 0;
+            if (first) {
+                const nightWord = nights === 1 ? 'night' : 'nights';
+                document.getElementById('summary-dates').innerText =
+                    `${first.checkin} — ${first.checkout} · ${nights} ${nightWord}`;
+            }
+
+            // Global tax breakdown on the subtotal (single itinerary => one stay length)
+            const gst = subtotal * 0.05;
+            const atlExempt = nights >= 28;                 // 28+ nights exempt from Alberta Tourism Levy
+            const atl = atlExempt ? 0 : subtotal * 0.06;
+            const grandTotal = subtotal + gst + atl;
+
+            document.getElementById('summary-subtotal').innerText = money(subtotal);
+            document.getElementById('summary-gst').innerText = money(gst);
+            const atlRow = document.getElementById('summary-atl-row');
+            if (atlExempt) {
+                atlRow.style.display = 'none';
+            } else {
+                atlRow.style.display = 'flex';
+                document.getElementById('summary-atl').innerText = money(atl);
+            }
+            document.getElementById('summary-grand-total').innerText = money(grandTotal);
             sessionStorage.setItem('booking_amount', grandTotal.toFixed(2));
 
             // Country & Phone Init (UNCHANGED)
@@ -548,90 +545,19 @@
             if (drawer) drawer.style.display = (drawer.style.display === "block") ? "none" : "block";
         }
 
-        // --- Helper: Brand Detection & Icon Update (NEW) ---
-        function detectCardBrand(number) {
-            const n = number.replace(/\s+/g, ''); // Strip spaces
-            if (!n) return '';
-
-            // 1. Visa: Starts with 4
-            if (/^4/.test(n)) return 'Visa';
-
-            // 2. Mastercard: 51-55 OR 2221-2720
-            const firstTwo = parseInt(n.substring(0, 2), 10);
-            const firstFour = parseInt(n.substring(0, 4), 10);
-
-            if ((firstTwo >= 51 && firstTwo <= 55) || (firstFour >= 2221 && firstFour <= 2720)) {
-                return 'MasterCard';
-            }
-
-            // 3. AMEX: 34 or 37
-            if (/^3[47]/.test(n)) return 'AMEX';
-
-            return '';
-        }
-
-        function updateCardIcons(brand) {
-            document.querySelectorAll('.card-icons img').forEach(img => img.style.filter = 'grayscale(100%)');
-            if (brand === 'Visa') document.getElementById('icon-visa').style.filter = 'none';
-            if (brand === 'MasterCard') document.getElementById('icon-mastercard').style.filter = 'none';
-            if (brand === 'AMEX') document.getElementById('icon-amex').style.filter = 'none';
-        }
-
-        // --- Card Input Listener (UPDATED FOR CUSTOM FORMATTING) ---
-        document.getElementById('card_number').addEventListener('input', function(e) {
-            let val = e.target.value.replace(/\D/g, '');
-            const brand = detectCardBrand(val);
-            const cvcInput = document.getElementById('cvc');
-            updateCardIcons(brand);
-
-            if (brand === 'Visa') {
-                if (val.length <= 13) {
-                    // Visa 13: XXXX XXXXX XXX
-                    e.target.value = val.replace(/^(\d{4})(\d{5})?(\d{4})?/, function(m, p1, p2, p3) {
-                        let res = p1;
-                        if (p2) res += ' ' + p2;
-                        if (p3) res += ' ' + p3;
-                        return res;
-                    });
-                } else {
-                    // Visa 16/19: Standard groups of 4 + 3-digit tail
-                    e.target.value = val.replace(/(.{4})/g, '$1 ').trim();
+        // --- Special Requests: cap at 100 words ---
+        (function() {
+            const sr = document.getElementById('special_requests');
+            if (!sr) return;
+            const clampWords = () => {
+                const words = sr.value.split(/\s+/).filter(Boolean);
+                if (words.length > 100) {
+                    sr.value = words.slice(0, 100).join(' ');
                 }
-                cvcInput.placeholder = "000";
-                cvcInput.maxLength = 3;
-            } else if (brand === 'AMEX') {
-                // AMEX 15: XXXX XXXXXX XXXXX
-                e.target.value = val.replace(/^(\d{4})(\d{6})?(\d{5})?/, function(m, p1, p2, p3) {
-                    let res = p1;
-                    if (p2) res += ' ' + p2;
-                    if (p3) res += ' ' + p3;
-                    return res;
-                });
-                cvcInput.placeholder = "0000";
-                cvcInput.maxLength = 4;
-            } else {
-                // Default / Mastercard: XXXX XXXX XXXX XXXX
-                e.target.value = val.replace(/(.{4})/g, '$1 ').trim();
-                cvcInput.placeholder = "000";
-                cvcInput.maxLength = 3;
-            }
-        });
-
-        // --- Smart Expiry Input Listener (UPDATED) ---
-        document.getElementById('expiry').addEventListener('input', function(e) {
-            let input = e.target.value.replace(/\D/g, '');
-            // Prefix 0 if starts with 2-9
-            if (input.length === 1 && input > 1 && input <= 9) { input = '0' + input; }
-            if (input.length >= 2) {
-                e.target.value = input.substring(0, 2) + ' / ' + input.substring(2, 4);
-            } else {
-                e.target.value = input;
-            }
-        });
-
-        document.getElementById('expiry').addEventListener('keydown', function(e) {
-            if (e.key === 'Backspace' && this.value.length === 5) this.value = this.value.substring(0, 2);
-        });
+            };
+            sr.addEventListener('input', clampWords);
+            sr.addEventListener('paste', () => setTimeout(clampWords, 0));
+        })();
 
         // --- Error Display Helpers (UPDATED) ---
         function showError(input, message) {
@@ -659,66 +585,34 @@
         function validateForm() {
             let isFormValid = true;
 
-            const cardName = document.getElementById('card_name');
-            if (!cardName.value.trim()) { showError(cardName, "Enter the cardholder's name"); isFormValid = false; } else clearError(cardName);
-
-            const cardNumber = document.getElementById('card_number');
-            const rawCard = cardNumber.value.replace(/\s+/g, '');
-            const brand = detectCardBrand(rawCard);
-            
-            if (!rawCard || !/^\d+$/.test(rawCard) || !brand) {
-                showError(cardNumber, "This card number is not valid.");
-                isFormValid = false;
-            } else {
-                const len = rawCard.length;
-                // Updated lenValid to include 19 for Visa
-                let lenValid = (brand === 'Visa' && [13, 16, 19].includes(len)) || 
-                            (brand === 'MasterCard' && len === 16) || 
-                            (brand === 'AMEX' && len === 15);
-                if (!lenValid) { showError(cardNumber, "This card number is not valid."); isFormValid = false; } else clearError(cardNumber);
-            }
-
-            const expiry = document.getElementById('expiry');
-            const expClean = expiry.value.replace(/\D/g, '');
-            if (!expiry.value.trim()) {
-                showError(expiry, "Please input a valid expiry date.");
-                isFormValid = false;
-            } else if (expClean.length < 4) {
-                showError(expiry, "Please enter a valid expiry date.");
-                isFormValid = false;
-            } else {
-                const month = parseInt(expClean.substring(0, 2));
-                const year = parseInt("20" + expClean.substring(2, 4));
-                const now = new Date();
-                if (month < 1 || month > 12 || year > (now.getFullYear() + 20)) {
-                    showError(expiry, "Please enter a valid expiry date.");
-                    isFormValid = false;
-                } else if (new Date(year, month - 1, 1) < new Date(now.getFullYear(), now.getMonth(), 1)) {
-                    showError(expiry, "Expiry date cannot be in the past.");
-                    isFormValid = false;
-                } else clearError(expiry);
-            }
-
-            const cvc = document.getElementById('cvc');
-            const cvcVal = cvc.value.trim();
-            if (!cvcVal || !/^\d+$/.test(cvcVal) || cvcVal.length < 3) {
-                showError(cvc, "Please enter a valid CVV.");
-                isFormValid = false;
-            } else if (brand === 'AMEX' && cvcVal.length !== 4) {
-                showError(cvc, "Please enter a valid CVV.");
-                isFormValid = false;
-            } else if ((brand === 'Visa' || brand === 'MasterCard') && cvcVal.length !== 3) {
-                showError(cvc, "Please enter a valid CVV.");
-                isFormValid = false;
-            } else clearError(cvc);
-
-            ['first_name', 'last_name', 'email', 'phone', 'address', 'city'].forEach(id => {
-                const el = document.getElementById(id);
-                if (!el || !el.value.trim()) { 
-                    if(el) showError(el, `Please fill in your ${id.replace('_',' ')}`); 
-                    isFormValid = false; 
-                } else clearError(el);
+            // Simple required text fields with specific messages
+            const requiredFields = [
+                { id: 'first_name', msg: 'First name is required.' },
+                { id: 'last_name',  msg: 'Last name is required.' },
+                { id: 'address',    msg: 'Address is required.' },
+                { id: 'city',       msg: 'City is required.' },
+            ];
+            requiredFields.forEach(f => {
+                const el = document.getElementById(f.id);
+                if (!el || !el.value.trim()) { if (el) showError(el, f.msg); isFormValid = false; }
+                else clearError(el);
             });
+
+            // Email: required + basic name@domain.com format
+            const email = document.getElementById('email');
+            const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!email.value.trim() || !emailRe.test(email.value.trim())) {
+                showError(email, "Please enter a valid email address.");
+                isFormValid = false;
+            } else clearError(email);
+
+            // Phone: required + at least 7 digits
+            const phone = document.getElementById('phone');
+            const phoneDigits = phone.value.replace(/\D/g, '');
+            if (!phone.value.trim() || phoneDigits.length < 7) {
+                showError(phone, "Please enter a valid phone number.");
+                isFormValid = false;
+            } else clearError(phone);
 
             if (isFormValid) {
                 // Guest Details
@@ -729,18 +623,15 @@
                 sessionStorage.setItem('review_city', document.getElementById('city').value);
                 sessionStorage.setItem('review_country', document.querySelector("#country-select").value);
                 
-                // State/Province
-                const stateVal = document.getElementById('state_province').value.trim();
-                sessionStorage.setItem('guest_state', stateVal !== "" ? stateVal : "N/A");
+                // State/Province (field removed)
+                sessionStorage.setItem('guest_state', "N/A");
 
                 // Special Requests
                 const requestVal = document.getElementById('special_requests').value.trim();
                 sessionStorage.setItem('special_requests', requestVal !== "" ? requestVal : "N/A");
 
-                // Arrival Time
-                const arrivalEl = document.getElementById('arrival_time');
-                // Ensure we don't just save an empty string if the user didn't select
-                sessionStorage.setItem('arrival_time', (arrivalEl.value && arrivalEl.value !== "") ? arrivalEl.value : "Not selected");
+                // Arrival Time (field removed)
+                sessionStorage.setItem('arrival_time', "Not selected");
 
                 // Capture Radio Button
                 const selectedRadio = document.querySelector('input[name="bookingFor"]:checked');
@@ -749,11 +640,6 @@
                     bookingForValue = selectedRadio.nextElementSibling.innerText.trim();
                 }
                 sessionStorage.setItem('booking_for', bookingForValue);
-
-                // Card Details
-                sessionStorage.setItem('card_brand', brand);
-                sessionStorage.setItem('card_last4', rawCard.slice(-4));
-                sessionStorage.setItem('card_expiry', document.getElementById('expiry').value);
 
                 // Room Details
                 const cartData = JSON.parse(localStorage.getItem('bookingCart')) || [];

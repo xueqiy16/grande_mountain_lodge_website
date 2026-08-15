@@ -2257,8 +2257,8 @@ body.landing.is-preload:after {
 
 	/* Style for the logo in the header */
 	.header-logo {
-		height: 3.5em; 
-		width: auto;   
+		height: 4.5em;
+		width: auto;
 		vertical-align: middle;
 		display: inline-block;
 		transition: opacity 0.2s ease-in-out;
@@ -4603,8 +4603,6 @@ body.landing.is-preload:after {
 
 	/* Adjust the link styling to ensure it aligns perfectly with the button text */
 	.view-amenities {
-		display: inline-flex;
-		align-items: center;
 		white-space: nowrap;         /* Prevents the text from wrapping */
 	}
 
@@ -4614,6 +4612,16 @@ body.landing.is-preload:after {
 		margin-bottom: 1.5em;
 		color: #666;
 		font-size: 0.9em;
+		list-style: none;
+		padding-left: 0;
+	}
+
+	.room-specs li {
+		list-style: none;
+	}
+
+	.room-specs li::before {
+		content: none !important;
 	}
 
 	.room-specs li .icon {
@@ -4622,10 +4630,12 @@ body.landing.is-preload:after {
 
 	.view-amenities {
 		border-bottom: none !important;
-		font-weight: bold;
-		color: #444 !important;
-		font-size: 0.8em;
-		text-transform: uppercase;
+		text-transform: none !important;  /* mixed case: "Detailed Amenities" */
+	}
+
+	.view-amenities .icon {
+		margin-left: 0.6em;               /* space between text and chevron */
+		vertical-align: middle;
 	}
 
 	/* Modal Styling */
@@ -4639,21 +4649,46 @@ body.landing.is-preload:after {
 		width: 100%;
 		height: 100%;
 		background-color: rgba(0,0,0,0.6);
+		backdrop-filter: blur(4px);
+		-webkit-backdrop-filter: blur(4px);
 		overflow-y: auto; /* Allows scrolling if the list is long */
 		align-items: flex-start;
 		justify-content: center;
 		padding-top: 50px;
+		padding-bottom: 50px; /* breathing room so the card never hugs the viewport edge */
+		animation: modalBackdropIn 0.5s ease forwards;
 	}
 
 	.modal-content {
 		background-color: #fff;
 		margin: 0 auto;
 		padding: 3em;
+		padding-bottom: 4em; /* comfortable gap below the amenities list */
 		width: 90%;
 		max-width: 800px;
 		border-radius: 4px;
 		position: relative;
 		text-align: center;
+		transform-origin: center top;
+		animation: modalFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+	}
+
+	/* Smooth fade + subtle scale/slide entrance for the amenities modal */
+	@keyframes modalFadeIn {
+		from {
+			opacity: 0;
+			transform: translateY(20px) scale(0.96);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0) scale(1);
+		}
+	}
+
+	/* Matching backdrop fade */
+	@keyframes modalBackdropIn {
+		from { opacity: 0; }
+		to { opacity: 1; }
 	}
 
 	.close-button {
@@ -4827,9 +4862,19 @@ body.landing.is-preload:after {
 		border-radius: 4px;
 	}
 
-	/* Hide the images by default */
+	/* Slides stack and translate horizontally for a smooth slide */
 	.mySlides {
-		display: none;
+		display: block;
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+	}
+
+	/* Keep one slide in normal flow so the container keeps its height */
+	.mySlides:first-of-type {
+		position: relative;
 	}
 
 	/* Next & previous buttons */
