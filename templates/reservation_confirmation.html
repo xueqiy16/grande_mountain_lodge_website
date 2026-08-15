@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reservation Confirmed | Grande Mountain Lodge</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --bg-gray: #fcfcfc;
+            --text-dark: #1a1a1a;
+            --text-muted: #666;
+            --text-light-grey: #999;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-gray);
+            color: var(--text-dark);
+            padding-bottom: 80px;
+            margin: 0;
+        }
+        .container { max-width: 800px; margin: 0 auto; padding: 0 20px; }
+        .header-section { text-align: center; padding: 40px 0 24px; }
+        .header-section h1 { font-weight: 700; margin: 0 0 12px; font-size: 1.75rem; }
+        .header-section .lead { color: var(--text-muted); font-size: 0.95rem; margin: 0 0 20px; }
+        .success-badge {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: #ecfdf3; color: #166534; border: 1px solid #bbf7d0;
+            padding: 10px 16px; border-radius: 8px; font-size: 0.9rem; margin-bottom: 16px;
+        }
+        .no-charge-banner {
+            background: #fff; border: 2px solid #111; border-radius: 12px;
+            padding: 20px 24px; text-align: center; margin-bottom: 24px;
+            font-size: 1.05rem; font-weight: 700; line-height: 1.5;
+        }
+        .review-card {
+            background: #fff; border-radius: 12px; border: 1px solid #868e96;
+            margin-bottom: 24px; padding: 30px;
+        }
+        .card-title-area { display: flex; align-items: center; margin-bottom: 20px; }
+        .icon-circle {
+            width: 40px; height: 40px; background: #f0f0f0; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin-right: 15px; font-size: 1.2rem;
+        }
+        .card-title-area h5 { font-weight: 700; margin: 0; font-size: 1.15rem; }
+        .info-row {
+            display: flex; justify-content: space-between; gap: 16px;
+            padding: 12px 0; border-bottom: 1px solid #f5f5f5;
+        }
+        .info-row:last-child { border-bottom: none; }
+        .label { color: var(--text-muted); font-size: 0.9rem; flex-shrink: 0; }
+        .value { font-weight: 600; font-size: 0.95rem; text-align: right; }
+        .policy-text p { font-size: 0.9rem; color: var(--text-muted); line-height: 1.6; margin: 0 0 12px; }
+        .policy-text p:last-child { margin-bottom: 0; }
+        .notice-banner {
+            background: #fffbeb; border: 1px solid #fde68a; color: #92400e;
+            padding: 14px 18px; border-radius: 8px; margin-bottom: 24px; font-size: 0.9rem;
+        }
+        .error-banner {
+            background: #fef2f2; border: 1px solid #fecaca; color: #991b1b;
+            padding: 20px; border-radius: 12px; text-align: center;
+        }
+        .btn-container { margin-top: 32px; display: flex; flex-direction: column; gap: 12px; }
+        .btn-row {
+            display: flex; flex-wrap: wrap; gap: 12px;
+        }
+        .btn-row .btn-confirm,
+        .btn-row .btn-secondary {
+            flex: 1 1 220px;
+        }
+        .btn-secondary {
+            background: white; color: #111; border: 1px solid #ddd; padding: 16px 18px;
+            border-radius: 8px; font-weight: 600; font-size: 1rem; cursor: pointer;
+            text-align: center; text-decoration: none; display: inline-block;
+        }
+        .btn-secondary:hover { border-color: #ff5778; color: #ff5778; }
+        .btn-confirm {
+            background: #ff5778; color: white; border: none; padding: 16px 18px;
+            border-radius: 8px; font-weight: 600; font-size: 1rem; cursor: pointer;
+        }
+        .btn-confirm:hover { background: #D63683; }
+        .btn-back {
+            background: white; color: #111; border: 1px solid #ddd; padding: 14px;
+            border-radius: 8px; font-weight: 500; cursor: pointer; text-align: center;
+            text-decoration: none; display: block;
+        }
+        .contact-link { color: #111; font-weight: 600; text-decoration: none; }
+        .contact-link:hover { color: #ff5778; }
+        .brand-footer { text-align: center; margin-top: 40px; color: #666; font-size: 0.95rem; }
+        .brand-footer img { width: 80px; height: auto; margin-top: 12px; }
+
+        @media print {
+            body { background: #fff; padding: 0; }
+            .no-print { display: none !important; }
+            .review-card { break-inside: avoid; border-color: #ccc; }
+            .container { max-width: 100%; padding: 0; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    {% if error %}
+    <div class="header-section">
+        <div class="error-banner">{{ error }}</div>
+        <a href="/" class="btn-back no-print">Return to Home</a>
+    </div>
+    {% elif confirmation %}
+    <div class="header-section">
+        <div class="success-badge no-print"><i class="bi bi-check-circle-fill"></i> Reservation received</div>
+        <h1>Reservation Confirmed</h1>
+        <p class="lead">Thank you, {% if confirmation.guest_name %}{{ confirmation.guest_name }}{% else %}guest{% endif %}. Your stay at Grande Mountain Lodge has been successfully recorded.</p>
+    </div>
+
+    {% if email_notice %}
+    <div class="notice-banner no-print">
+        Your reservation is confirmed. We were unable to deliver the confirmation email automatically — please save or print this page, or contact us if you need a copy sent to you.
+    </div>
+    {% endif %}
+
+    <div class="no-charge-banner">
+        No charge today — Pay upon arrival at the front desk.
+    </div>
+
+    <div class="review-card">
+        <div class="card-title-area">
+            <div class="icon-circle"><i class="bi bi-credit-card"></i></div>
+            <h5>Payment Details</h5>
+        </div>
+        <div class="policy-text">
+            <p><strong>You will not be charged today.</strong> Payment is collected in-person when you arrive at the lodge.</p>
+            <p><strong>Accepted Payment Methods:</strong> {{ confirmation.lodge.payment_methods }}.</p>
+            <p><strong>{{ confirmation.lodge.cheques_note }}</strong></p>
+        </div>
+    </div>
+
+    <div class="review-card">
+        <div class="card-title-area">
+            <div class="icon-circle"><i class="bi bi-calendar-check"></i></div>
+            <h5>Stay Details</h5>
+        </div>
+        {% if confirmation.booking_reference %}
+        <div class="info-row"><span class="label">Confirmation number</span><span class="value">{{ confirmation.booking_reference }}</span></div>
+        {% endif %}
+        {% if confirmation.check_in %}
+        <div class="info-row"><span class="label">Check-in</span><span class="value">{{ confirmation.check_in }}</span></div>
+        {% endif %}
+        {% if confirmation.check_out %}
+        <div class="info-row"><span class="label">Check-out</span><span class="value">{{ confirmation.check_out }}</span></div>
+        {% endif %}
+        {% if confirmation.nights %}
+        <div class="info-row"><span class="label">Nights</span><span class="value">{{ confirmation.nights }}</span></div>
+        {% endif %}
+        {% if confirmation.guest_name %}
+        <div class="info-row"><span class="label">Guest</span><span class="value">{{ confirmation.guest_name }}</span></div>
+        {% endif %}
+        {% for room in confirmation.rooms %}
+        <div class="info-row"><span class="label">Room {{ loop.index }}</span><span class="value">{{ room.room_type_name }}{% if room.room_number %} (Room {{ room.room_number }}){% endif %}</span></div>
+        {% if room.guest_count %}
+        <div class="info-row"><span class="label">Guests</span><span class="value">{{ room.guest_count }}</span></div>
+        {% endif %}
+        {% endfor %}
+        {% if confirmation.grand_total %}
+        <div class="info-row"><span class="label">Estimated total due at lodge</span><span class="value">${{ '%.2f'|format(confirmation.grand_total) }} CAD</span></div>
+        {% endif %}
+        {% if confirmation.special_requests %}
+        <div class="info-row"><span class="label">Special requests</span><span class="value">{{ confirmation.special_requests }}</span></div>
+        {% endif %}
+    </div>
+
+    <div class="review-card">
+        <div class="card-title-area">
+            <div class="icon-circle"><i class="bi bi-signpost-split"></i></div>
+            <h5>Important Arrival Information</h5>
+        </div>
+        <div class="policy-text">
+            <p>Check-in is from {{ confirmation.lodge.check_in_hours }} and Check-out is until {{ confirmation.lodge.check_out_hours }}.</p>
+            <p>You must show government-issued photo identification and a credit card upon Check-in.</p>
+            <p>Please inform the lodge in advance of your expected arrival time with our contact information provided on this website and on the reservation confirmation received after booking.</p>
+            <p>If you require early arrival or late departure, please email or phone us.</p>
+            <p>The minimum Check-in age is {{ confirmation.lodge.min_check_in_age }} years old.</p>
+        </div>
+    </div>
+
+    <div class="review-card">
+        <div class="card-title-area">
+            <div class="icon-circle"><i class="bi bi-p-square"></i></div>
+            <h5>Parking</h5>
+        </div>
+        <div class="policy-text"><p>{{ confirmation.lodge.parking }}</p></div>
+    </div>
+
+    <div class="review-card">
+        <div class="card-title-area">
+            <div class="icon-circle"><i class="bi bi-telephone"></i></div>
+            <h5>Contact</h5>
+        </div>
+        <div class="info-row"><span class="label">{{ confirmation.lodge.name }}</span><span class="value"></span></div>
+        <div class="info-row"><span class="label">Phone</span><span class="value"><a class="contact-link" href="tel:{{ confirmation.lodge.phone_tel }}">{{ confirmation.lodge.phone }}</a></span></div>
+        <div class="info-row"><span class="label">Email</span><span class="value"><a class="contact-link" href="mailto:{{ confirmation.lodge.email }}">{{ confirmation.lodge.email }}</a></span></div>
+    </div>
+
+    <div class="review-card">
+        <div class="card-title-area">
+            <div class="icon-circle"><i class="bi bi-geo-alt"></i></div>
+            <h5>Directions</h5>
+        </div>
+        <div class="policy-text">
+            <p>{{ confirmation.lodge.address }}</p>
+            <p><a class="contact-link" href="{{ confirmation.lodge.maps_url }}" target="_blank" rel="noopener noreferrer">Open in Google Maps</a></p>
+        </div>
+    </div>
+
+    <div class="btn-container no-print">
+        <div class="btn-row">
+            <a class="btn-secondary" href="/reservation-confirmation/{{ confirmation.booking_reference }}/calendar.ics">
+                Add to Calendar
+            </a>
+            <button type="button" class="btn-confirm" onclick="window.print()">Print / Save as PDF</button>
+        </div>
+        <a href="/" class="btn-back">Return to Home</a>
+    </div>
+
+    <div class="brand-footer">
+        <div>Grande Mountain Lodge Motel</div>
+        <div>Your mountain escape awaits</div>
+        <img src="/static/images/GML_Logo.png" alt="Grande Mountain Lodge Logo">
+    </div>
+    {% endif %}
+</div>
+</body>
+</html>

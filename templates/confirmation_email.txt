@@ -1,0 +1,41 @@
+Reservation Confirmed — Grande Mountain Lodge
+
+Thank you for choosing Grande Mountain Lodge.
+
+No charge today — Pay upon arrival at the front desk.
+
+PAYMENT DETAILS
+You will not be charged today. Payment is collected in-person when you arrive at the lodge.
+Accepted Payment Methods: {{ confirmation.lodge.payment_methods }}.
+{{ confirmation.lodge.cheques_note }}
+
+STAY DETAILS
+{% if confirmation.booking_reference %}Confirmation number: {{ confirmation.booking_reference }}
+{% endif %}{% if confirmation.guest_name %}Guest: {{ confirmation.guest_name }}
+{% endif %}{% if confirmation.check_in %}Check-in: {{ confirmation.check_in }}
+{% endif %}{% if confirmation.check_out %}Check-out: {{ confirmation.check_out }}
+{% endif %}{% if confirmation.nights %}Nights: {{ confirmation.nights }}
+{% endif %}{% for room in confirmation.rooms %}Room {{ loop.index }}: {{ room.room_type_name }}{% if room.room_number %} (Room {{ room.room_number }}){% endif %}{% if room.guest_count %} — {{ room.guest_count }}{% endif %}
+{% endfor %}{% if confirmation.grand_total %}Estimated total due at lodge: ${{ '%.2f'|format(confirmation.grand_total) }} CAD
+{% endif %}{% if confirmation.special_requests %}Special requests: {{ confirmation.special_requests }}
+{% endif %}
+IMPORTANT ARRIVAL INFORMATION
+Check-in is from {{ confirmation.lodge.check_in_hours }} and Check-out is until {{ confirmation.lodge.check_out_hours }}.
+You must show government-issued photo identification and a credit card upon Check-in.
+Please inform the lodge in advance of your expected arrival time with our contact information provided on this website and on the reservation confirmation received after booking.
+If you require early arrival or late departure, please email or phone us.
+The minimum Check-in age is {{ confirmation.lodge.min_check_in_age }} years old.
+
+PARKING
+{{ confirmation.lodge.parking }}
+
+CONTACT
+{{ confirmation.lodge.name }}
+Phone: {{ confirmation.lodge.phone }}
+Email: {{ confirmation.lodge.email }}
+
+DIRECTIONS
+{{ confirmation.lodge.address }}
+{{ confirmation.lodge.maps_url }}
+
+Grande Mountain Lodge Motel — Your mountain escape awaits

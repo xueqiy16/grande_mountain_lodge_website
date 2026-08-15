@@ -1,0 +1,584 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+  <title>Rooms — Grande Mountain Lodge</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <link rel="stylesheet" href="/static/assets/css/main.css" />
+  <link rel="stylesheet" href="/static/assets/css/enhancements.css" />
+  <noscript><link rel="stylesheet" href="/static/assets/css/noscript.css" /></noscript>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+
+<!-- Slideshow Script -->
+<script>
+let slideIndices = {};
+
+function plusSlides(n, containerId) {
+    if (!slideIndices[containerId]) slideIndices[containerId] = 1;
+    showSlides(slideIndices[containerId] += n, containerId);
+}
+
+function currentSlide(n, containerId) {
+    showSlides(slideIndices[containerId] = n, containerId);
+}
+
+function showSlides(n, containerId) {
+    let i;
+    let container = document.getElementById(containerId);
+    if (!container) return;
+    
+    let slides = container.getElementsByClassName("mySlides");
+    let dots = container.getElementsByClassName("dot");
+    
+    if (!slideIndices[containerId]) slideIndices[containerId] = 1;
+    if (n > slides.length) {slideIndices[containerId] = 1}
+    if (n < 1) {slideIndices[containerId] = slides.length}
+
+    const current = slideIndices[containerId] - 1; // 0-based active index
+
+    // Smoothly slide each image into place via translateX
+    for (i = 0; i < slides.length; i++) {
+        slides[i].style.transform = `translateX(${(i - current) * 100}%)`;
+    }
+
+    for (i = 0; i < dots.length; i++) {
+        dots[i].className = dots[i].className.replace(" active-dot", "");
+    }
+
+    if (dots.length > 0) {
+        dots[current].className += " active-dot";
+    }
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+    let containers = document.querySelectorAll('.slideshow-container');
+    containers.forEach(container => {
+        showSlides(1, container.id);
+    });
+});
+</script>
+
+<body class="landing rooms-page">
+  <div id="page-wrapper">
+
+    <!-- Header -->
+    <header id="header">
+          <h1 id="logo">
+                    <a href="/">
+                        <img src="/static/images/GML_Logo.png" alt="Grande Mountain Lodge" class="header-logo">
+                    </a>
+                </h1>
+                <nav id="nav">
+              <ul>
+                <li><a href="/" class="white">Home</a></li>
+                <li><a href="/rooms" class="white">Rooms</a></li>
+                <li><a href="/travel-guide" class="white">Travel Guide</a></li>
+                <li><a href="/contact" class="white">Contact</a></li>
+                <li><a href="/booking" class="button primary">BOOK NOW</a></li>
+              </ul>
+          </nav>
+      </header>
+
+    <!-- Banner -->
+    <section id="rooms" class="wrapper">
+        <div class="container">
+          <header class="major">
+            <h2>Our Rooms</h2>
+            <p>We offer three room types: standard, studio, and suite. Smoking and non-smoking options are available.</p>
+          </header>
+        </div>
+      </section>
+
+    <!-- Rooms Section -->
+    <section id="four" class="wrapper style1 special fade-up">
+        <div class="container">
+
+            <!-- Navigation Bar -->
+            <nav class="room-filter-nav">
+                <button class="filter-btn active" onclick="filterRooms('standard')">Standard</button>
+                <button class="filter-btn" onclick="filterRooms('studio')">Studio</button>
+                <button class="filter-btn" onclick="filterRooms('suite')">Suite</button>
+            </nav>
+
+            <!-- Standard Queen -->
+            <div id="standard" class="room-category-container active">
+                <div class="room-row">
+                    <div class="room-image">
+                        <div class="slideshow-container" id="slides-std">
+                            <div class="mySlides fade"><img src="/static/images/STD-Q-NS.jpg" style="width:100%"></div>
+                            <div class="mySlides fade"><img src="/static/images/STD-Q-NS1.jpg" style="width:100%"></div>
+                            <div class="mySlides fade"><img src="/static/images/STD-Q-NS2.jpg" style="width:100%"></div>
+                            <a class="prev" onclick="plusSlides(-1, 'slides-std')">&#10094;</a>
+                            <a class="next" onclick="plusSlides(1, 'slides-std')">&#10095;</a>
+                            <div class="dot-container">
+                              <span class="dot" onclick="currentSlide(1, 'slides-std')"></span>
+                              <span class="dot" onclick="currentSlide(2, 'slides-std')"></span>
+                              <span class="dot" onclick="currentSlide(3, 'slides-std')"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="room-details">
+                        <h3>Standard Queen</h3>
+                        <ul class="room-specs">
+                            <li><span class="icon solid fa-users"></span> 2 guests</li>
+                            <li><span class="icon solid fa-smoking"></span> Non-Smoking</li>
+                            <li><span class="icon solid fa-tag"></span> $84.99 / night</li>
+                        </ul>
+                        <p>Perfect for solo travelers & couples with shorter stays.
+                            <br><br>Main details include:
+                            <br><i class="fa-solid fa-bed"></i> 1 Queen Bed
+                            <br><i class="fa-solid fa-toilet-paper"></i> Ensuite Bathroom
+                        <ul class="actions">
+                            <li><a href="/booking" class="button">Check Availability</a></li>
+                            <li><a href="javascript:void(0)" class="button view-amenities" onclick="openModal('modal-standard')">Detailed Amenities</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Studio Queen and Double Queen -->
+            <div id="studio" class="room-category-container">
+                <div class="room-row">
+                    <div class="room-image">
+                      <div class="slideshow-container" id="slides-stu-q">
+                          <div class="mySlides fade"><img src="/static/images/STU-Q-NS1.jpg" style="width:100%"></div>
+                          <div class="mySlides fade"><img src="/static/images/STU-Q-NS2.jpg" style="width:100%"></div>
+                          <div class="mySlides fade"><img src="/static/images/STU-Q-NS3.jpg" style="width:100%"></div>
+                          <div class="mySlides fade"><img src="/static/images/STU-Q-NS4.jpg" style="width:100%"></div>
+                          <a class="prev" onclick="plusSlides(-1, 'slides-stu-q')">&#10094;</a>
+                          <a class="next" onclick="plusSlides(1, 'slides-stu-q')">&#10095;</a>
+                          <div class="dot-container">
+                              <span class="dot" onclick="currentSlide(1, 'slides-stu-q')"></span>
+                              <span class="dot" onclick="currentSlide(2, 'slides-stu-q')"></span>
+                              <span class="dot" onclick="currentSlide(3, 'slides-stu-q')"></span>
+                              <span class="dot" onclick="currentSlide(4, 'slides-stu-q')"></span>
+                          </div>
+                      </div>
+                    </div>
+                    <div class="room-details">
+                        <h3>Studio Queen</h3>
+                        <ul class="room-specs">
+                            <li><span class="icon solid fa-users"></span> 2 guests</li>
+                            <li><span class="icon solid fa-smoking"></span> Smoking/Non-Smoking options</li>
+                            <li><span class="icon solid fa-tag"></span> $89.99 / night</li>
+                        </ul>
+                        <p>Perfect for shorter to mid-range retreats.
+                        <br><br>Main details include:
+                        <br><i class="fa-solid fa-bed"></i> 1 Queen Bed
+                        <br><i class="fa-solid fa-kitchen-set"></i> Kitchenette
+                        <br><i class="fa-solid fa-utensils"></i> Dining Area
+                        <br><i class="fa-solid fa-toilet-paper"></i> Ensuite Bathroom</p>
+                        <ul class="actions">
+                            <li><a href="/booking" class="button">Check Availability</a></li>
+                            <li><a href="javascript:void(0)" class="button view-amenities" onclick="openModal('modal-studio')">Detailed Amenities</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="room-row">
+                  <div class="room-image">
+                    <div class="slideshow-container" id="slides-stu-qq">
+                        <div class="mySlides fade"><img src="/static/images/STU-QQ-NS1.jpg" style="width:100%"></div>
+                        <div class="mySlides fade"><img src="/static/images/STU-QQ-NS2.jpg" style="width:100%"></div>
+                        <div class="mySlides fade"><img src="/static/images/STU-QQ-NS3.jpg" style="width:100%"></div>
+                        <div class="mySlides fade"><img src="/static/images/STU-QQ-NS4.jpg" style="width:100%"></div>
+                        <div class="mySlides fade"><img src="/static/images/STU-QQ-NS5.jpg" style="width:100%"></div>
+                        <a class="prev" onclick="plusSlides(-1, 'slides-stu-qq')">&#10094;</a>
+                        <a class="next" onclick="plusSlides(1, 'slides-stu-qq')">&#10095;</a>
+                        <div class="dot-container">
+                            <span class="dot" onclick="currentSlide(1, 'slides-stu-qq')"></span>
+                            <span class="dot" onclick="currentSlide(2, 'slides-stu-qq')"></span>
+                            <span class="dot" onclick="currentSlide(3, 'slides-stu-qq')"></span>
+                            <span class="dot" onclick="currentSlide(4, 'slides-stu-qq')"></span>
+                            <span class="dot" onclick="currentSlide(5, 'slides-stu-qq')"></span>
+                        </div>
+                    </div>
+                  </div>
+                  <div class="room-details">
+                      <h3>Studio Double Queen</h3>
+                      <ul class="room-specs">
+                          <li><span class="icon solid fa-users"></span> 4 guests</li>
+                          <li><span class="icon solid fa-smoking"></span> Smoking/Non-Smoking options</li>
+                          <li><span class="icon solid fa-tag"></span> $99.99 / night</li>
+                      </ul>
+                      <p>Perfect for families with mid-range retreats.
+                      <br><br>Main details include:
+                        <br><i class="fa-solid fa-bed"></i> 2 Queen Beds
+                        <br><i class="fa-solid fa-kitchen-set"></i> Kitchenette
+                        <br><i class="fa-solid fa-utensils"></i> Dining Area
+                        <br><i class="fa-solid fa-toilet-paper"></i> Ensuite Bathroom</p>
+                      <ul class="actions">
+                          <li><a href="/booking" class="button">Check Availability</a></li>
+                          <li><a href="javascript:void(0)" class="button view-amenities" onclick="openModal('modal-studio')">Detailed Amenities</a></li>
+                      </ul>
+                  </div>
+                </div>
+            </div>
+
+            <!-- Suite Queen and King -->
+            <div id="suite" class="room-category-container">
+                <div class="room-row">
+                    <div class="room-image">
+                        <div class="slideshow-container" id="slides-ste-q">
+                            <div class="mySlides fade"><img src="/static/images/STE-Q-NS1.jpg" style="width:100%"></div>
+                            <div class="mySlides fade"><img src="/static/images/STE-Q-NS2.jpg" style="width:100%"></div>
+                            <div class="mySlides fade"><img src="/static/images/STE-Q-NS3.jpg" style="width:100%"></div>
+                            <div class="mySlides fade"><img src="/static/images/STE-Q-NS4.jpg" style="width:100%"></div>
+                            <div class="mySlides fade"><img src="/static/images/STE-Q-NS5.jpg" style="width:100%"></div>
+                            <a class="prev" onclick="plusSlides(-1, 'slides-ste-q')">&#10094;</a>
+                            <a class="next" onclick="plusSlides(1, 'slides-ste-q')">&#10095;</a>
+                            <div class="dot-container">
+                              <span class="dot" onclick="currentSlide(1, 'slides-ste-q')"></span>
+                              <span class="dot" onclick="currentSlide(2, 'slides-ste-q')"></span>
+                              <span class="dot" onclick="currentSlide(3, 'slides-ste-q')"></span>
+                              <span class="dot" onclick="currentSlide(4, 'slides-ste-q')"></span>
+                              <span class="dot" onclick="currentSlide(5, 'slides-ste-q')"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="room-details">
+                        <h3>Suite Queen</h3>
+                        <ul class="room-specs">
+                            <li><span class="icon solid fa-users"></span> 2 guests</li>
+                            <li><span class="icon solid fa-smoking"></span> Non-Smoking</li>
+                            <li><span class="icon solid fa-tag"></span> $104.99 / night</li>
+                        </ul>
+                        <p>Spacious offering for longer stays.
+                        <br><br>Main details include:
+                        <br><i class="fa-solid fa-bed"></i> Separate Bedroom with 1 Queen Bed
+                        <br><i class="fa-solid fa-couch"></i> Large Living Room
+                        <br><i class="fa-solid fa-kitchen-set"></i> Kitchenette
+                        <br><i class="fa-solid fa-utensils"></i> Dining Area
+                        <br><i class="fa-solid fa-toilet-paper"></i> Ensuite Bathroom</p>
+                        <ul class="actions">
+                            <li><a href="/booking" class="button">Check Availability</a></li>
+                            <li><a href="javascript:void(0)" class="button view-amenities" onclick="openModal('modal-suite')">Detailed Amenities</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="room-row">
+                    <div class="room-image">
+                        <div class="slideshow-container" id="slides-ste-k">
+                            <div class="mySlides fade"><img src="/static/images/STE-K-NS1.jpg" style="width:100%"></div>
+                            <div class="mySlides fade"><img src="/static/images/STE-K-NS2.jpg" style="width:100%"></div>
+                            <div class="mySlides fade"><img src="/static/images/STE-K-NS3.jpg" style="width:100%"></div>
+                            <div class="mySlides fade"><img src="/static/images/STE-K-NS4.jpg" style="width:100%"></div>
+                            <div class="mySlides fade"><img src="/static/images/STE-K-NS5.jpg" style="width:100%"></div>
+                            <a class="prev" onclick="plusSlides(-1, 'slides-ste-k')">&#10094;</a>
+                            <a class="next" onclick="plusSlides(1, 'slides-ste-k')">&#10095;</a>
+                            <div class="dot-container">
+                              <span class="dot" onclick="currentSlide(1, 'slides-ste-k')"></span>
+                              <span class="dot" onclick="currentSlide(2, 'slides-ste-k')"></span>
+                              <span class="dot" onclick="currentSlide(3, 'slides-ste-k')"></span>
+                              <span class="dot" onclick="currentSlide(4, 'slides-ste-k')"></span>
+                              <span class="dot" onclick="currentSlide(5, 'slides-ste-k')"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="room-details">
+                        <h3>Suite King</h3>
+                        <ul class="room-specs">
+                            <li><span class="icon solid fa-users"></span> 2 guests</li>
+                            <li><span class="icon solid fa-smoking"></span> Non-Smoking</li>
+                            <li><span class="icon solid fa-tag"></span> $104.99 / night</li>
+                        </ul>
+                        <p>Spacious offering for longer stays.
+                        <br><br>Main details include:
+                        <br><i class="fa-solid fa-bed"></i> 1 King Bed
+                        <br><i class="fa-solid fa-couch"></i> Living Room
+                        <br><i class="fa-solid fa-kitchen-set"></i> Large Kitchenette
+                        <br><i class="fa-solid fa-utensils"></i> Large Dining Area
+                        <br><i class="fa-solid fa-toilet-paper"></i> Ensuite Bathroom with Bathtub and Shower</p>
+                        <ul class="actions">
+                            <li><a href="/booking" class="button">Check Availability</a></li>
+                            <li><a href="javascript:void(0)" class="button view-amenities" onclick="openModal('modal-suite')">Detailed Amenities</a></li>
+                        </ul>
+                    </div>
+                </div>
+              </div>
+
+        </div>
+      </section>
+
+
+    <!-- General Rules -->
+				<section id="four" class="wrapper style1 special fade-up">
+					<div class="container">
+						<header class="major">
+							<h2>General Facilities, Services and Regulations</h2>
+						</header>
+						<div class="box alt">
+							<div class="row gtr-uniform">
+
+								<section class="col-4 col-6-medium col-12-xsmall">
+									<span class="icon solid alt major fa-paw"></span>
+									<h3>Pets</h3>
+									<p>Only dogs are allowed with a $20 pet fee. Pet bowls can be provided.</p>
+								</section>
+
+								<section class="col-4 col-6-medium col-12-xsmall">
+									<span class="icon solid alt major fa-concierge-bell"></span>
+									<h3>General and Reception Services</h3>
+									<p>Free wifi, free parking, fax/photocopying, daily housekeeping, wake-up services/alarm clock, fully-refundable rooms, allow reserve-now and pay-later, reception invoice provided.</p>
+								</section>
+
+								<section class="col-4 col-6-medium col-12-xsmall">
+									<span class="icon solid alt major fa-mountain"></span>
+									<h3>Outdoor Services</h3>
+									<p>Balcony, picnic area, outdoor furniture, mountain views.</p>
+								</section>
+
+								<section class="col-4 col-6-medium col-12-xsmall">
+									<span class="icon solid alt major fa-wheelchair"></span>
+									<h3>Accessibility Services</h3>
+									<p>Facilities for disabled guests</p>
+								</section>
+
+								<section class="col-4 col-6-medium col-12-xsmall">
+									<span class="icon solid alt major fa-chess"></span>
+									<h3>Entertainment & Family Services</h3>
+									<p>Board games/puzzles in the main lobby</p>
+								</section>
+
+								<section class="col-4 col-6-medium col-12-xsmall">
+									<span class="icon solid alt major fa-lock"></span>
+									<h3>Safety & Security</h3>
+									<p>Designated smoking areas, smoke detector, carbon monoxide detector, fire extinguisher, first aid kit, CCTV outside property.</p>
+								</section>
+							</div>
+                            <br><br><br>
+						</div>
+					</div>
+				</section>
+   
+    <!-- Footer -->
+    <footer id="footer">
+        <div class="container">
+            <header class="minor">
+                <h4>Listed On</h4>
+            </header>
+            <div class="partner-grid">
+                <div class="partner-logo"><img src="/static/images/partners/booking_com.svg.png" alt="Booking.com"></div>
+                <div class="partner-logo"><img src="/static/images/partners/expedia.svg" alt="Expedia"></div>
+                <div class="partner-logo"><img src="/static/images/partners/tripadvisor.png" alt="TripAdvisor"></div>
+                <div class="partner-logo"><img src="/static/images/partners/kayak.png" alt="KAYAK"></div>
+                <div class="partner-logo"><img src="/static/images/partners/agoda.svg.png" alt="Agoda"></div>
+                <div class="partner-logo"><img src="/static/images/partners/hotels_com.png" alt="Hotels.com"></div>
+                <div class="partner-logo"><img src="/static/images/partners/holidaycheck.svg.png" alt="HolidayCheck"></div>
+                <div class="partner-logo"><img src="/static/images/partners/lodgingworld.png" alt="lodgingworld"></div>
+                <div class="partner-logo"><img src="/static/images/partners/hotelni_com.png" alt="hotelni.com"></div>
+                <div class="partner-logo"><img src="/static/images/partners/trivago.svg.png" alt="Trivago"></div>
+                <div class="partner-logo"><img src="/static/images/partners/gother.png" alt="Gother"></div>
+                <div class="partner-logo"><img src="/static/images/partners/skyscanner.svg.png" alt="Skyscanner"></div>
+                <div class="partner-logo"><img src="/static/images/partners/wanderlog.png" alt="Wanderlog"></div>
+                <div class="partner-logo"><img src="/static/images/partners/mapquest.png" alt="MapQuest"></div>
+                <div class="partner-logo"><img src="/static/images/partners/travelalberta.png" alt="Travel Alberta"></div>
+                <div class="partner-logo"><img src="/static/images/partners/albertahotels.png" alt="Alberta Hotels"></div>
+            </div>
+        </div>
+        <ul class="copyright">
+            <li>&copy; Untitled. All rights reserved.</li><li>Design: <a href="http://html5up.net">HTML5 UP</a></li>
+        </ul>
+    </footer>
+
+    <!-- Amenities Modal -->
+    <div id="amenities-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal()">&times;</span>
+            <h2>Detailed Amenities</h2>
+            <div id="modal-body-content">
+                </div>
+        </div>
+    </div>
+
+    <div id="modal-standard" style="display:none;">
+        <h3 class="amenity-category-title">Bedroom</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Wardrobes</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Alarm clock</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Bedside lamps</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Small couch</div>
+        </div>
+
+        <h3 class="amenity-category-title">Ensuite Bathroom</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Free toiletries</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Hairdryer</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Towels</div>
+        </div>
+
+        <h3 class="amenity-category-title">Living Area</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Flat-screen TV</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Telephone</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Work desk</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Ergonomic chair</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Hangers</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Tea/Coffee maker</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Garbage can</div>
+        </div>
+
+        <h3 class="amenity-category-title">General</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> High-speed Wi-Fi</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Air conditioning</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Heating</div>
+        </div>
+    </div>
+
+    <div id="modal-studio" style="display:none;">
+        <h3 class="amenity-category-title">Bedroom</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Wardrobes</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Alarm clock</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Bedside lamps</div>
+        </div>
+
+        <h3 class="amenity-category-title">Kitchenette</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Stove</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Sink</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Refrigerator</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Microwave</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Toaster</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Utensils set</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Plates/Bowls/Cups</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Pots/Pans</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Kitchen Towels</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Garbage Can</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Tea/Coffee Maker</div>
+        </div>
+
+        <h3 class="amenity-category-title">Ensuite Bathroom</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Free toiletries</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Hairdryer</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Towels</div>
+        </div>
+
+        <h3 class="amenity-category-title">Living Area</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Flat-screen TV</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Telephone</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Work desk</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Ergonomic chair</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Hangers</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Full length mirror</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Couch (Studio Queen only)</div>
+        </div>
+
+        <h3 class="amenity-category-title">Dining Area</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Table</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Stool</div>
+        </div>
+
+        <h3 class="amenity-category-title">General</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> High-speed Wi-Fi</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Air conditioning</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Heating</div>
+        </div>
+    </div>
+
+    <div id="modal-suite" style="display:none;">
+        <h3 class="amenity-category-title">Bedroom</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Wardrobes</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Alarm clock</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Bedside lamps</div>
+        </div>
+
+        <h3 class="amenity-category-title">Kitchenette</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Stove</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Sink</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Refrigerator</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Microwave</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Toaster</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Utensils set</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Plates/Bowls/Cups</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Pots/Pans</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Kitchen Towels</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Garbage Can</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Tea/Coffee Maker</div>
+        </div>
+
+        <h3 class="amenity-category-title">Ensuite Bathroom</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Free toiletries</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Hairdryer</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Towels</div>
+        </div>
+
+        <h3 class="amenity-category-title">Living Area</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Flat-screen TV</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Telephone</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Work desk</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Ergonomic chair</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Hangers</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Full length mirror</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Couch</div>
+        </div>
+
+        <h3 class="amenity-category-title">Dining Area</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Table</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Stools (Suite Queen only)</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Chairs (Suite King only)</div>
+        </div>
+
+        <h3 class="amenity-category-title">General</h3>
+        <div class="amenities-grid">
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> High-speed Wi-Fi</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Air conditioning</div>
+            <div class="amenity-item"><i class="fa-solid fa-check"></i> Heating</div>
+        </div>
+    </div>
+
+     <!-- Scripts -->
+    <script>
+        function filterRooms(category) {
+            const containers = document.querySelectorAll('.room-category-container');
+            containers.forEach(c => c.classList.remove('active'));
+            const buttons = document.querySelectorAll('.filter-btn');
+            buttons.forEach(b => b.classList.remove('active'));
+            document.getElementById(category).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+    </script>
+
+    <script>
+        function openModal(contentId) {
+            var modal = document.getElementById("amenities-modal");
+            var body = document.getElementById("modal-body-content");
+            var sourceData = document.getElementById(contentId);
+            
+            if (modal && body && sourceData) {
+                body.innerHTML = sourceData.innerHTML; // Copies the hidden emoji grid into the popup
+                modal.style.display = "block";
+                document.body.style.overflow = "hidden"; // Prevents background scrolling
+            }
+        }
+
+        function closeModal() {
+            document.getElementById("amenities-modal").style.display = "none";
+            document.body.style.overflow = "auto";
+        }
+
+        // Close modal when clicking outside the box
+        window.onclick = function(event) {
+            var modal = document.getElementById("amenities-modal");
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+    </script>
+  </div>
+  <script src="/static/assets/js/jquery.min.js"></script>
+  <script src="/static/assets/js/enhancements.js"></script>
+</body>
+</html>

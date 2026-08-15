@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Reservation Confirmation</title>
+</head>
+<body style="font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; line-height: 1.6; max-width: 640px; margin: 0 auto; padding: 24px;">
+    <h1 style="font-size: 22px; margin-bottom: 8px;">Reservation Confirmed</h1>
+    <p style="color: #666;">Thank you for choosing Grande Mountain Lodge.</p>
+
+    <p style="font-size: 16px; font-weight: bold; border: 2px solid #111; padding: 16px; text-align: center;">
+        No charge today — Pay upon arrival at the front desk.
+    </p>
+
+    <h2 style="font-size: 18px; margin-top: 28px;">Payment Details</h2>
+    <p>You will not be charged today. Payment is collected in-person when you arrive at the lodge.</p>
+    <p><strong>Accepted Payment Methods:</strong> {{ confirmation.lodge.payment_methods }}.</p>
+    <p><strong>{{ confirmation.lodge.cheques_note }}</strong></p>
+
+    <h2 style="font-size: 18px; margin-top: 28px;">Stay Details</h2>
+    {% if confirmation.booking_reference %}<p><strong>Confirmation number:</strong> {{ confirmation.booking_reference }}</p>{% endif %}
+    {% if confirmation.guest_name %}<p><strong>Guest:</strong> {{ confirmation.guest_name }}</p>{% endif %}
+    {% if confirmation.check_in %}<p><strong>Check-in:</strong> {{ confirmation.check_in }}</p>{% endif %}
+    {% if confirmation.check_out %}<p><strong>Check-out:</strong> {{ confirmation.check_out }}</p>{% endif %}
+    {% if confirmation.nights %}<p><strong>Nights:</strong> {{ confirmation.nights }}</p>{% endif %}
+    {% for room in confirmation.rooms %}
+    <p><strong>Room {{ loop.index }}:</strong> {{ room.room_type_name }}{% if room.room_number %} (Room {{ room.room_number }}){% endif %}{% if room.guest_count %} — {{ room.guest_count }}{% endif %}</p>
+    {% endfor %}
+    {% if confirmation.grand_total %}<p><strong>Estimated total due at lodge:</strong> ${{ '%.2f'|format(confirmation.grand_total) }} CAD</p>{% endif %}
+    {% if confirmation.special_requests %}<p><strong>Special requests:</strong> {{ confirmation.special_requests }}</p>{% endif %}
+
+    <h2 style="font-size: 18px; margin-top: 28px;">Important Arrival Information</h2>
+    <p>Check-in is from {{ confirmation.lodge.check_in_hours }} and Check-out is until {{ confirmation.lodge.check_out_hours }}.</p>
+    <p>You must show government-issued photo identification and a credit card upon Check-in.</p>
+    <p>Please inform the lodge in advance of your expected arrival time with our contact information provided on this website and on the reservation confirmation received after booking.</p>
+    <p>If you require early arrival or late departure, please email or phone us.</p>
+    <p>The minimum Check-in age is {{ confirmation.lodge.min_check_in_age }} years old.</p>
+
+    <h2 style="font-size: 18px; margin-top: 28px;">Parking</h2>
+    <p>{{ confirmation.lodge.parking }}</p>
+
+    <h2 style="font-size: 18px; margin-top: 28px;">Contact</h2>
+    <p>{{ confirmation.lodge.name }}<br>
+    Phone: {{ confirmation.lodge.phone }}<br>
+    Email: {{ confirmation.lodge.email }}</p>
+
+    <h2 style="font-size: 18px; margin-top: 28px;">Directions</h2>
+    <p>{{ confirmation.lodge.address }}<br>
+    <a href="{{ confirmation.lodge.maps_url }}">Open in Google Maps</a></p>
+
+    <p style="margin-top: 32px; color: #666; font-size: 13px;">Grande Mountain Lodge Motel — Your mountain escape awaits</p>
+</body>
+</html>

@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Your Booking | Grande Mountain Lodge</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --bg-gray: #fcfcfc;
+            --border-color: #eee;
+            --text-dark: #1a1a1a;
+            --text-muted: #666;
+            --text-light-grey: #999;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-gray);
+            color: var(--text-dark);
+            padding-bottom: 80px;
+        }
+
+        .container { max-width: 800px; margin: 0 auto; padding: 0 20px; }
+
+        .header-section { text-align: center; padding: 40px 0; }
+        .header-section h1 { font-family: 'Inter', sans-serif; font-weight: 700; margin-bottom: 10px; }
+        .header-section p { color: var(--text-muted); font-size: 0.95rem; }
+
+        /* Static dark-gray outline matching the booker contact page: no hover
+           effects, shadows, or transitions. */
+        .review-card,
+        .review-card:hover {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid #868e96;
+            margin-bottom: 24px;
+            padding: 30px;
+            box-shadow: none;
+            transform: none;
+            transition: none;
+        }
+
+        .card-title-area { display: flex; align-items: center; margin-bottom: 25px; }
+        .icon-circle {
+            width: 40px; height: 40px; background: #f0f0f0; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin-right: 15px; font-size: 1.2rem;
+        }
+        .card-title-area h5 { font-family: 'Inter', sans-serif; font-weight: 700; margin: 0; font-size: 1.25rem; }
+
+        /* Data Rows */
+        .info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f5f5f5; }
+        .info-row:last-child { border-bottom: none; }
+        .label { color: var(--text-muted); font-size: 0.9rem; }
+        .value { font-weight: 600; font-size: 0.95rem; }
+
+        /* Bolded grand-total row */
+        .info-row.total-row .label,
+        .info-row.total-row .value { font-weight: 700; color: var(--text-dark); font-size: 1rem; }
+
+        /* Special requests: label ~1/4 width on the left, wrapping text on the right */
+        .info-row.request-row { align-items: flex-start; gap: 16px; }
+        .info-row.request-row .label { flex: 0 0 25%; }
+        .info-row.request-row .value {
+            flex: 1;
+            text-align: left;
+            font-weight: 400;
+            white-space: normal;
+            word-break: break-word;
+            line-height: 1.5;
+        }
+
+        /* Muted footer note inside the Total Cost box */
+        .total-note { margin-top: 16px; font-size: 0.8rem; color: var(--text-light-grey); line-height: 1.5; }
+
+        /* Policy Section Overhaul */
+        .policy-item { display: flex; align-items: flex-start; margin-bottom: 25px; border-bottom: 1px solid #f9f9f9; padding-bottom: 15px; }
+        .policy-item:last-child { border-bottom: none; }
+        .policy-icon { width: 40px; margin-right: 15px; font-size: 1.2rem; color: #111; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; line-height: 1.4; }
+        .policy-text { flex: 1; }
+        .policy-text h6 { font-weight: 500; margin-bottom: 6px; font-size: 0.95rem; color: #111; line-height: 1.4; margin-top: 0; }
+        .policy-text p { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 4px; line-height: 1.5; }
+        .policy-muted-note { font-style: italic; font-size: 0.8rem; color: #999; margin-top: 5px; }
+
+        /* Buttons & Footer */
+        .btn-container { margin-top: 40px; display: flex; flex-direction: column; gap: 12px; }
+        .btn-confirm {
+            background: #ff5778; color: white; border: none; padding: 18px; border-radius: 8px;
+            font-weight: 600; font-size: 1rem; cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .btn-confirm:hover { background: #D63683; }
+        .btn-back {
+            background: white; color: #111; border: 1px solid #ddd; padding: 14px; border-radius: 8px;
+            font-weight: 500; cursor: pointer;
+            transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+        }
+        .btn-back:hover { background: #f3f4f6; color: #ff5778; border-color: #ff5778; }
+        
+        .legal-disclaimer { text-align: center; font-size: 0.8rem; color: var(--text-muted); margin: 20px 0 40px 0; line-height: 1.4; }
+        .brand-footer { text-align: center; }
+        .brand-footer .lodge-name { font-size: 1rem; color: #666; font-weight: 400; margin-bottom: 4px; }
+        .brand-footer .tagline { font-size: 0.95rem; color: #666; font-weight: 400; }
+        
+        .logo-footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-bottom: 40px;
+        }
+        .logo-footer img {
+            max-width: 200px;
+            height: auto;
+        }
+
+        .logo-footer img {
+            width: 80px;   /* adjust as needed */
+            height: auto;   /* keeps aspect ratio */
+        }
+
+        /* Confirm modal (matches booking.html pattern) */
+        #confirm-booking-modal {
+            display: none; position: fixed; inset: 0; z-index: 10002;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(5px);
+            align-items: center; justify-content: center;
+        }
+        #confirm-booking-modal .confirm-card {
+            background: #fff; width: 90%; max-width: 440px; border-radius: 12px;
+            padding: 28px 26px 22px; box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+        }
+        #confirm-booking-modal h3 { margin: 0 0 10px; font-size: 1.25rem; font-weight: 800; }
+        #confirm-booking-modal p { margin: 0 0 20px; color: #555; font-size: 0.95rem; line-height: 1.5; }
+        #confirm-booking-modal .confirm-actions { display: flex; justify-content: flex-end; gap: 10px; }
+        #confirm-booking-modal .confirm-cancel,
+        #confirm-booking-modal .confirm-proceed {
+            border: none; border-radius: 8px; padding: 9px 16px;
+            font-size: 0.9rem; font-weight: 600; cursor: pointer;
+        }
+        #confirm-booking-modal .confirm-cancel { background: #eee; color: #333; }
+        #confirm-booking-modal .confirm-proceed { background: #ff5778; color: #fff; }
+
+        .btn-confirm.loading {
+            position: relative; color: transparent; pointer-events: none;
+        }
+        .btn-confirm.loading::after {
+            content: ""; position: absolute; width: 18px; height: 18px;
+            top: 50%; left: 50%; margin: -9px 0 0 -9px;
+            border: 2px solid #fff; border-radius: 50%;
+            border-top-color: transparent; animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .booking-error {
+            display: none; background: #fef2f2; border: 1px solid #fecaca;
+            color: #991b1b; padding: 14px 16px; border-radius: 8px;
+            font-size: 0.9rem; line-height: 1.5; margin-bottom: 12px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-section">
+        <h1>Review Your Booking</h1>
+        <p>Please review your reservation details before confirming your stay with us.</p>
+    </div>
+
+    <div class="review-card">
+        <div class="card-title-area">
+            <div class="icon-circle"><i class="bi bi-person"></i></div>
+            <h5>Guest Information</h5>
+        </div>
+        <div class="info-row"><span class="label">Name</span><span class="value" id="review-name"></span></div>
+        <div class="info-row"><span class="label">Email</span><span class="value" id="review-email"></span></div>
+        <div class="info-row"><span class="label">Phone</span><span class="value" id="review-phone"></span></div>
+        <div class="info-row"><span class="label">Address</span><span class="value" id="review-address"></span></div>
+        <div class="info-row"><span class="label">City</span><span class="value" id="review-city"></span></div>
+        <div class="info-row"><span class="label">Country</span><span class="value" id="review-country"></span></div>
+    </div>
+
+    <div class="review-card">
+        <div class="card-title-area">
+            <div class="icon-circle"><i class="bi bi-calendar-check"></i></div>
+            <h5>Your Reservation</h5>
+        </div>
+        <div class="info-row"><span class="label">Check-in</span><span class="value" id="review-checkin"></span></div>
+        <div class="info-row"><span class="label">Check-out</span><span class="value" id="review-checkout"></span></div>
+        <div class="info-row"><span class="label">Number of nights</span><span class="value" id="review-nights"></span></div>
+    </div>
+
+    <div id="dynamic-booking-summary"></div>
+
+    <div class="review-card">
+        <div class="card-title-area">
+            <div class="icon-circle"><i class="bi bi-exclamation-circle"></i></div>
+            <h5>General Policies</h5>
+        </div>
+        
+        <div class="policy-item">
+            <div class="policy-icon"><i class="bi bi-arrow-repeat"></i></div>
+            <div class="policy-text">
+                <h6>Flexible plans</h6>
+                <p>We understand mountain travel plans can change. There are no cancellation fees or no-show penalties for this reservation. If your plans change, we simply ask that you give us a quick call at <a href="tel:7808272007">780-827-2007</a> or email <a href="mailto:reception@grandemountainlodge.com">reception@grandemountainlodge.com</a>.</p>
+            </div>
+        </div>
+
+        <div class="policy-item">
+            <div class="policy-icon"><i class="bi bi-currency-dollar"></i></div>
+            <div class="policy-text">
+                <h6>Tax policies</h6>
+                <p>A 5% Goods and Services Tax (GST) applies to taxable accommodation charges. A 6% Alberta Tourism Levy (ATL) applies to eligible accommodation booked on or after April 1, 2026; the levy does not apply when the same guest continuously occupies the lodging for 28 days or more.</p>
+            </div>
+        </div>
+
+        <div class="policy-item">
+            <div class="policy-icon"><i class="bi bi-emoji-smile"></i></div>
+            <div class="policy-text">
+                <h6>Child policies</h6>
+                <p>Children of all ages are welcome. Children 18 and above will be charged as adults at this property.</p>
+            </div>
+        </div>
+
+        <div class="policy-item">
+            <div class="policy-icon"><i class="bi bi-briefcase"></i></div>
+            <div class="policy-text">
+                <h6>Crib and extra bed policies</h6>
+                <p>No cribs or extra beds are available.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="btn-container">
+        <div id="booking-error" class="booking-error" role="alert"></div>
+        <button id="confirm-booking" class="btn-confirm">Confirm Booking</button>
+        <button onclick="history.back()" class="btn-back">Go Back</button>
+        
+        <p class="legal-disclaimer">By clicking "Confirm Booking", you agree to our <a href="/terms-and-conditions" style="color: #0066cc; text-decoration: underline;">Terms & Conditions</a> and <a href="/privacy-policy" style="color: #0066cc; text-decoration: underline;">Privacy Policy</a>.</p>
+        
+        <div class="brand-footer">
+            <div class="lodge-name">Grande Mountain Lodge Motel</div>
+            <div class="tagline">Your mountain escape awaits</div>
+            <img src="/static/images/GML_Logo.png"
+                alt="Grande Mountain Lodge Logo"
+                style="width: 80px; height: auto;">
+        </div>
+    </div>   
+</div>
+
+<div id="confirm-booking-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
+    <div class="confirm-card">
+        <h3 id="confirm-modal-title">Confirm your reservation?</h3>
+        <p>You are about to finalize your booking with Grande Mountain Lodge. No payment is collected today — charges are due upon arrival at the front desk.</p>
+        <div class="confirm-actions">
+            <button type="button" class="confirm-cancel" id="confirm-modal-cancel">Go Back</button>
+            <button type="button" class="confirm-proceed" id="confirm-modal-proceed">Yes, Confirm Booking</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function computeNights(checkin, checkout) {
+        const a = new Date(checkin), b = new Date(checkout);
+        const diff = Math.round((b - a) / 86400000);
+        return diff > 0 ? diff : 1;
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        // 1. Guest Data - Using Fallbacks to prevent empty display during testing
+        document.getElementById('review-name').textContent = sessionStorage.getItem('guest_name') || "Not Provided";
+        document.getElementById('review-email').textContent = sessionStorage.getItem('guest_email') || "Not Provided";
+        document.getElementById('review-phone').textContent = sessionStorage.getItem('guest_phone') || "Not Provided";
+        document.getElementById('review-address').textContent = sessionStorage.getItem('guest_address') || "Not Provided";
+        
+        // Fix: Ensuring these match the keys saved in booker_contact.html
+        document.getElementById('review-city').textContent = sessionStorage.getItem('review_city') || sessionStorage.getItem('guest_city') || "Not Provided";
+        document.getElementById('review-country').textContent = sessionStorage.getItem('review_country') || sessionStorage.getItem('guest_country') || "Not Provided";
+
+        // 2. Dynamic room summary
+        const cartData = JSON.parse(localStorage.getItem('bookingCart')) || [];
+        const bookingContainer = document.getElementById('dynamic-booking-summary');
+
+        // "Your Reservation" box — one shared stay window across all rooms
+        const stayNights = cartData.length
+            ? (cartData[0].nights || computeNights(cartData[0].checkin, cartData[0].checkout))
+            : 0;
+        if (cartData.length) {
+            document.getElementById('review-checkin').textContent = cartData[0].checkin || "Not Provided";
+            document.getElementById('review-checkout').textContent = cartData[0].checkout || "Not Provided";
+            document.getElementById('review-nights').textContent = `${stayNights} ${stayNights === 1 ? 'night' : 'nights'}`;
+        }
+
+        if (bookingContainer) {
+            bookingContainer.innerHTML = '';
+
+            // Currency helper: "$XX.XX CAD"
+            const formatCurrency = (amount) => `$${amount.toFixed(2)} CAD`;
+
+            cartData.forEach((room, index) => {
+                // Guest/pet string (singular/plural handled dynamically)
+                let guestParts = [`${room.adults} ${room.adults === 1 ? 'Adult' : 'Adults'}`];
+                if (room.children > 0) guestParts.push(`${room.children} ${room.children === 1 ? 'Child' : 'Children'}`);
+                if (room.pets > 0) guestParts.push(`${room.pets} ${room.pets === 1 ? 'Pet' : 'Pets'}`);
+                const guestSummary = guestParts.join(', ');
+
+                const nights = room.nights || stayNights || 1;
+                const nightlyRate = room.pricePerNight || (room.price ? room.price / nights : 0);
+                const totalRoomCost = room.price || (nightlyRate * nights);
+
+                // Room card: exactly 3 rows (Guests, Room Cost, Total Room Cost)
+                bookingContainer.innerHTML += `
+                    <div class="review-card">
+                        <div class="card-title-area">
+                            <div class="icon-circle"><i class="bi bi-door-closed"></i></div>
+                            <h5>Room ${index + 1}: ${room.name}</h5>
+                        </div>
+                        <div class="info-row"><span class="label">Guests</span><span class="value">${guestSummary}</span></div>
+                        <div class="info-row"><span class="label">Room Cost</span><span class="value">$${nightlyRate.toFixed(2)} CAD / night</span></div>
+                        <div class="info-row"><span class="label">Total Room Cost</span><span class="value">${formatCurrency(totalRoomCost)}</span></div>
+                    </div>`;
+            });
+
+            // Aggregate subtotal + taxes (computed ONLY on the booking subtotal)
+            const subtotal = cartData.reduce((sum, room) => {
+                const n = room.nights || stayNights || 1;
+                const rate = room.pricePerNight || (room.price ? room.price / n : 0);
+                return sum + (room.price || rate * n);
+            }, 0);
+            const gst = subtotal * 0.05;
+            const atlApplies = stayNights <= 27; // Alberta Tourism Levy exempt for 28+ night stays
+            const atl = atlApplies ? subtotal * 0.06 : 0;
+            const grandTotal = subtotal + gst + atl;
+
+            const atlRow = atlApplies
+                ? `<div class="info-row"><span class="label">Alberta Tourism Levy (6%)</span><span class="value">${formatCurrency(atl)}</span></div>`
+                : '';
+
+            bookingContainer.innerHTML += `
+                <div class="review-card">
+                    <div class="card-title-area">
+                        <div class="icon-circle"><i class="bi bi-currency-dollar"></i></div>
+                        <h5>Total Cost</h5>
+                    </div>
+                    <div class="info-row"><span class="label">Subtotal</span><span class="value">${formatCurrency(subtotal)}</span></div>
+                    <div class="info-row"><span class="label">GST (5%)</span><span class="value">${formatCurrency(gst)}</span></div>
+                    ${atlRow}
+                    <div class="info-row total-row"><span class="label">Total</span><span class="value">${formatCurrency(grandTotal)}</span></div>
+                    <p class="total-note">No upfront payment required today. All room charges and fees will be collected in person at check-in or check-out.</p>
+                </div>`;
+
+            // Special requests (own box, restructured layout)
+            const specialRequests = sessionStorage.getItem('special_requests') || "N/A";
+            bookingContainer.innerHTML += `
+                <div class="review-card">
+                    <div class="card-title-area">
+                        <div class="icon-circle"><i class="bi bi-info-circle"></i></div>
+                        <h5>Special Requests</h5>
+                    </div>
+                    <div class="info-row request-row"><span class="label">Special requests</span><span class="value">${specialRequests}</span></div>
+                </div>`;
+        }
+    });
+
+    document.getElementById('confirm-booking').addEventListener('click', () => {
+        const cartData = JSON.parse(localStorage.getItem('bookingCart')) || [];
+        if (cartData.length === 0) {
+            alert('Your cart is empty. Please start a new booking.');
+            window.location.href = '/booking';
+            return;
+        }
+        document.getElementById('confirm-booking-modal').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    });
+
+    document.getElementById('confirm-modal-cancel').addEventListener('click', () => {
+        document.getElementById('confirm-booking-modal').style.display = 'none';
+        document.body.style.overflow = '';
+    });
+
+    let isSubmitting = false;
+
+    document.getElementById('confirm-modal-proceed').addEventListener('click', () => {
+        if (isSubmitting) return;
+
+        const btn = document.getElementById('confirm-booking');
+        const errorEl = document.getElementById('booking-error');
+        const cartData = JSON.parse(localStorage.getItem('bookingCart')) || [];
+
+        document.getElementById('confirm-booking-modal').style.display = 'none';
+        document.body.style.overflow = '';
+
+        const fullName = (sessionStorage.getItem('guest_name') || '').trim();
+        const sp = fullName.indexOf(' ');
+        const firstName = sp > -1 ? fullName.slice(0, sp) : fullName;
+        const lastName = sp > -1 ? fullName.slice(sp + 1) : '';
+
+        const payload = {
+            checkin: cartData[0].checkin,
+            checkout: cartData[0].checkout,
+            rooms: cartData.map(i => ({
+                name: i.name, adults: i.adults, children: i.children, pets: i.pets
+            })),
+            guest: {
+                first_name: firstName,
+                last_name: lastName,
+                email: sessionStorage.getItem('guest_email') || '',
+                phone: sessionStorage.getItem('guest_phone') || '',
+                address: sessionStorage.getItem('guest_address') || '',
+                city: sessionStorage.getItem('review_city') || '',
+                country: sessionStorage.getItem('review_country') || ''
+            },
+            special_requests: sessionStorage.getItem('special_requests') || ''
+        };
+
+        isSubmitting = true;
+        errorEl.style.display = 'none';
+        btn.disabled = true;
+        btn.classList.add('loading');
+        btn.textContent = 'Securing your reservation...';
+
+        fetch('/confirm-booking', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+            .then(r => r.json().then(data => ({ ok: r.ok, data })))
+            .then(({ ok, data }) => {
+                if (ok && data && data.success) {
+                    localStorage.removeItem('bookingCart');
+                    localStorage.removeItem('checkinDate');
+                    localStorage.removeItem('checkoutDate');
+                    let url = data.redirect_url || ('/reservation-confirmation/' + data.booking_reference);
+                    if (data.email_sent === false) {
+                        url += (url.includes('?') ? '&' : '?') + 'email_failed=1';
+                    }
+                    window.location.href = url;
+                    return;
+                }
+                throw new Error((data && data.error) || 'We could not complete your booking. Please try again.');
+            })
+            .catch(err => {
+                isSubmitting = false;
+                btn.disabled = false;
+                btn.classList.remove('loading');
+                btn.textContent = 'Confirm Booking';
+                errorEl.textContent = err.message || 'We could not reach the server. Please try again or contact support.';
+                errorEl.style.display = 'block';
+            });
+    });
+</script>
+</body>
+</html>
