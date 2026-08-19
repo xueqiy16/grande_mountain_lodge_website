@@ -379,6 +379,17 @@
 
     let isSubmitting = false;
 
+    // Stable idempotency key for THIS booking attempt. Generated once per page
+    // load and reused on retries so a double-click / network retry cannot
+    // create duplicate reservations. A fresh page load starts a new attempt.
+    function makeIdempotencyKey() {
+        try {
+            if (window.crypto && crypto.randomUUID) return 'idem-' + crypto.randomUUID().replace(/-/g, '');
+        } catch (e) { /* fall through */ }
+        return 'idem-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 14);
+    }
+    const bookingIdempotencyKey = makeIdempotencyKey();
+
     document.getElementById('confirm-modal-proceed').addEventListener('click', () => {
         if (isSubmitting) return;
 
@@ -395,6 +406,7 @@
         const lastName = sp > -1 ? fullName.slice(sp + 1) : '';
 
         const payload = {
+            idempotency_key: bookingIdempotencyKey,
             checkin: cartData[0].checkin,
             checkout: cartData[0].checkout,
             rooms: cartData.map(i => ({
@@ -429,7 +441,14 @@
                     localStorage.removeItem('bookingCart');
                     localStorage.removeItem('checkinDate');
                     localStorage.removeItem('checkoutDate');
-                    let url = data.redirect_url || ('/reservation-confirmation/' + data.booking_reference);
+                    // The confirmation page needs the high-entropy token, which
+                    // only the server knows. Always use the server-provided
+                    // secure redirect_url; never rebuild a token-less URL from
+                    // booking_reference on the client.
+                    if (!data.redirect_url) {
+                        throw new Error('Your booking was received, but we could not open the confirmation page. Please check your email or contact the lodge.');
+                    }
+                    let url = data.redirect_url;
                     if (data.email_sent === false) {
                         url += (url.includes('?') ? '&' : '?') + 'email_failed=1';
                     }

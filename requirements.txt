@@ -1,4 +1,5 @@
 Flask==3.0.0
+Flask-Limiter==3.8.0
 gunicorn==21.2.0
 supabase==2.31.0
 python-dotenv==1.2.2

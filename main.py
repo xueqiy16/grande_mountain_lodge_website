@@ -1,12 +1,15 @@
 import os
-import sqlite3
+import re
+import uuid
 import secrets
 import logging
 from collections import Counter
-from flask import Flask, render_template, request, redirect, jsonify, Response
+from flask import Flask, render_template, request, jsonify, Response
 from datetime import datetime
 from dotenv import load_dotenv
 from supabase import create_client, Client
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 from confirmation import (
     build_calendar_ics,
@@ -20,9 +23,18 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # SUPABASE CLIENT — canonical source of truth for guest bookings
 # ---------------------------------------------------------------------------
+# The Flask backend is a trusted server-side component and must use a
+# server-only Supabase credential. Prefer the newer "Secret key" format, then
+# the legacy service-role key. `SUPABASE_KEY` remains as a transitional
+# fallback so a deploy does not break before the Vercel env var is renamed.
+# This value is NEVER passed to templates, JS, or logs.
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_KEY = (
+    os.getenv("SUPABASE_SECRET_KEY")
+    or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    or os.getenv("SUPABASE_KEY")
+)
 
 supabase: Client = None
 if SUPABASE_URL and SUPABASE_KEY:
@@ -32,9 +44,56 @@ if SUPABASE_URL and SUPABASE_KEY:
         logger.error("[Supabase] client init failed: %s", e)
         supabase = None
 else:
-    logger.warning("[Supabase] SUPABASE_URL / SUPABASE_KEY not set — bookings disabled.")
+    logger.warning(
+        "[Supabase] SUPABASE_URL / SUPABASE_SECRET_KEY not set — bookings disabled."
+    )
 
 app = Flask(__name__)
+
+
+# ---------------------------------------------------------------------------
+# RATE LIMITING
+# ---------------------------------------------------------------------------
+# Public endpoints are protected with conservative, route-specific limits so
+# ordinary human booking is unaffected but scripted abuse (PII enumeration,
+# booking spam) is throttled. Static/marketing pages are NOT limited.
+#
+# Client IP behind the Vercel proxy: Vercel sets `X-Forwarded-For` with the
+# real client IP as the first entry. We take that first hop and fall back to
+# the socket address. This is the correct trusted source on Vercel; do not
+# trust the whole header blindly.
+def _client_ip():
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    if forwarded:
+        first = forwarded.split(",")[0].strip()
+        if first:
+            return first
+    return get_remote_address() or "127.0.0.1"
+
+
+limiter = Limiter(
+    key_func=_client_ip,
+    app=app,
+    default_limits=[],           # no blanket limit; only decorated routes
+    storage_uri="memory://",     # see deploy notes: per-instance on serverless
+    strategy="fixed-window",
+    headers_enabled=True,
+)
+
+
+@app.errorhandler(429)
+def _rate_limited(err):
+    """Uniform 429 for both JSON APIs and page routes."""
+    if request.path.startswith("/api/") or request.is_json:
+        return jsonify({
+            "success": False,
+            "valid": False,
+            "error": "Too many requests. Please slow down and try again shortly.",
+        }), 429
+    return (
+        "<h3>Too many requests. Please wait a moment and try again.</h3>",
+        429,
+    )
 
 # All rooms
 """
@@ -151,6 +210,14 @@ MAX_ROOMS_PER_TXN = 5
 MAX_HUMANS_PER_ROOM = 4
 MAX_PETS_PER_ROOM = 5
 
+# --- Availability request bounds (server-enforced; never trust the browser) ---
+# ASSUMPTION: the repository defined no explicit max-stay / booking-horizon
+# policy, so these conservative defaults are introduced. They are intentionally
+# generous enough to allow the 28+ night ("monthly") stays referenced by
+# ATL_EXEMPT_NIGHTS. Adjust here if the lodge's real policy differs.
+MAX_STAY_NIGHTS = 90          # longest single reservation window allowed
+MAX_FUTURE_DAYS = 540         # furthest-out check-in date allowed (~18 months)
+
 
 def _to_non_negative_int(value):
     """Return a non-negative integer, or None if the value is invalid
@@ -180,6 +247,48 @@ def _compute_taxes(subtotal, nights):
     gst = round(subtotal * GST_RATE, 2)
     atl = round(subtotal * ATL_RATE, 2) if nights < ATL_EXEMPT_NIGHTS else 0.0
     return gst, atl
+
+
+def _validate_stay_window(check_in, check_out, today=None):
+    """Server-side bounds for a requested stay. Returns (ok, error|None).
+
+    Enforces: valid dates, no past check-in, positive length, a finite maximum
+    stay length, and a finite future booking horizon. Pure/stateless so it can
+    be unit-tested without Supabase."""
+    if today is None:
+        today = datetime.now().date()
+    if not check_in or not check_out:
+        return False, "Invalid check-in/check-out dates."
+    if check_in < today:
+        return False, "Check-in date cannot be in the past."
+    if check_in >= check_out:
+        return False, "Check-out must be after check-in."
+    if (check_out - check_in).days > MAX_STAY_NIGHTS:
+        return False, f"Stays longer than {MAX_STAY_NIGHTS} nights cannot be booked online."
+    if (check_in - today).days > MAX_FUTURE_DAYS:
+        return False, "That check-in date is too far in the future to book online."
+    return True, None
+
+
+def _verify_token(stored, provided):
+    """Constant-time comparison of a confirmation access token.
+
+    Returns False when either side is missing so absence never grants access."""
+    if not stored or not provided:
+        return False
+    return secrets.compare_digest(str(stored), str(provided))
+
+
+_IDEMPOTENCY_RE = re.compile(r"^[A-Za-z0-9_\-]{16,128}$")
+
+
+def _normalize_idempotency_key(value):
+    """Return a safe idempotency key from client input, or mint a server-side
+    UUID when absent/invalid. Format-restricted to avoid unexpected payloads
+    reaching the database."""
+    if isinstance(value, str) and _IDEMPOTENCY_RE.match(value.strip()):
+        return value.strip()
+    return uuid.uuid4().hex
 
 
 # --- Supabase-backed catalog / inventory (cached for the process lifetime) ---
@@ -335,12 +444,9 @@ def _validate_itinerary(check_in, check_out, rooms_req):
 
     today = datetime.now().date()
 
-    if not check_in or not check_out:
-        return {"valid": False, "ok": False, "error": "Invalid check-in/check-out dates."}, 400
-    if check_in < today:
-        return {"valid": False, "ok": False, "error": "Check-in date cannot be in the past."}, 400
-    if check_in >= check_out:
-        return {"valid": False, "ok": False, "error": "Check-out must be after check-in."}, 400
+    window_ok, window_err = _validate_stay_window(check_in, check_out, today)
+    if not window_ok:
+        return {"valid": False, "ok": False, "error": window_err}, 400
 
     if not isinstance(rooms_req, list) or len(rooms_req) == 0:
         return {"valid": False, "ok": False, "error": "No rooms selected."}, 400
@@ -413,35 +519,6 @@ def _validate_itinerary(check_in, check_out, rooms_req):
             "grand_total": grand_total, "total": grand_total,
             "rooms": verified}, 200
 
-# Legacy SQLite table used ONLY by the prototype /admin-dashboard route.
-# Guest bookings are persisted exclusively in Supabase — not here.
-def init_db():
-    conn = sqlite3.connect('bookings.db')
-    db = conn.cursor()
-    db.execute('''
-        CREATE TABLE IF NOT EXISTS reservations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            room_type TEXT,
-            checkin TEXT,
-            checkout TEXT,
-            adults INTEGER,
-            children INTEGER,
-            pets INTEGER,
-            total_price REAL
-        )
-    ''')
-
-    # Indexes mirroring the Supabase availability indexes, so the local SQLite
-    # fallback (_overlap_counts_sqlite) stays fast during offline testing.
-    # Dates are stored ISO ('YYYY-MM-DD'), so lexical order == chronological order
-    # and the half-open range scan (checkout > ?, checkin < ?) can use these.
-    db.execute('CREATE INDEX IF NOT EXISTS idx_reservations_dates ON reservations (checkout, checkin)')
-    db.execute('CREATE INDEX IF NOT EXISTS idx_reservations_room_type_dates ON reservations (room_type, checkout, checkin)')
-
-    conn.commit()
-    conn.close()
-
-
 @app.route('/')
 def home():
     return render_template('index.html')
@@ -463,6 +540,7 @@ def booker_contact():
     return render_template('booker_contact.html')
 
 @app.route('/api/verify-cart', methods=['POST'])
+@limiter.limit("30 per minute")
 def verify_cart():
     """Re-price and re-verify a multi-room cart on the server before checkout.
     The client sends only room names + guest counts + dates; price and
@@ -477,16 +555,17 @@ def verify_cart():
 
 
 @app.route('/api/availability', methods=['POST'])
+@limiter.limit("30 per minute")
 def availability():
     """Server-verified remaining units per room type for a set of dates.
     Used by the booking page to grey out sold-out rooms after a search."""
     data = request.get_json(silent=True) or {}
     check_in = _parse_date(data.get('checkin'))
     check_out = _parse_date(data.get('checkout'))
-    today = datetime.now().date()
 
-    if not check_in or not check_out or check_in >= check_out or check_in < today:
-        return jsonify({"valid": False, "error": "Invalid check-in/check-out dates."}), 400
+    window_ok, window_err = _validate_stay_window(check_in, check_out)
+    if not window_ok:
+        return jsonify({"valid": False, "error": window_err}), 400
 
     return jsonify({"valid": True, "available": _availability_by_name(check_in, check_out)}), 200
 
@@ -494,27 +573,12 @@ def availability():
 # ---------------------------------------------------------------------------
 # BOOKING PERSISTENCE (Supabase only)
 # ---------------------------------------------------------------------------
-def _upsert_guest(guest):
-    """Find a guest by email (update) or insert a new one. Returns guest_id."""
-    email = guest["email"]
-    payload = {
-        "first_name": guest["first_name"],
-        "last_name": guest["last_name"],
-        "email": email,
-        "phone": guest["phone"],
-        "address": guest["address"],
-        "city": guest["city"],
-        "country": guest["country"],
-    }
-    found = supabase.table("guests").select("guest_id").eq("email", email).limit(1).execute().data
-    if found:
-        gid = found[0]["guest_id"]
-        supabase.table("guests").update(payload).eq("guest_id", gid).execute()
-        return gid
-    inserted = supabase.table("guests").insert(payload).execute().data
-    return inserted[0]["guest_id"]
-
-
+# Public guest + booking creation is performed by a single Postgres function
+# (`create_public_booking`, see supabase/migrations) so the whole reservation
+# is written atomically. Notably, that function INSERTS a fresh guest row for
+# every public reservation — it never UPDATEs an existing guest matched by
+# email — so an unauthenticated caller can no longer overwrite another guest's
+# profile just by submitting their email address.
 def _available_physical_rooms(room_type_id, check_in, check_out, exclude_room_ids=None):
     """Physical rooms of a room type that are eligible and not booked for overlapping dates.
 
@@ -608,17 +672,21 @@ def _generate_booking_reference():
     raise RuntimeError("Could not generate a unique booking reference.")
 
 
-def _rollback_bookings_by_reference(booking_ref):
-    """Best-effort cleanup if a multi-room insert fails partway through."""
-    try:
-        supabase.table("bookings").delete().eq("booking_reference", booking_ref).execute()
-    except Exception as exc:  # noqa: BLE001
-        logger.error("Rollback failed for %s: %s", booking_ref, exc)
-
-
 def _persist_booking(check_in, check_out, result, rooms_req, guest,
-                     special_requests, booking_ref):
-    """Write one bookings row per reserved room in Supabase. Server-computed prices only."""
+                     special_requests, booking_ref, confirmation_token,
+                     idempotency_key):
+    """Create the guest + all booking rows atomically via a Postgres RPC.
+
+    Prices, taxes, booking_status and amount_paid are computed here (server
+    side) and passed to the DB; the RPC never trusts client pricing. The RPC:
+      * is idempotent on `idempotency_key` (a repeat submit returns the
+        original reservation instead of creating a duplicate),
+      * INSERTs a new guest (never overwrites one by email),
+      * re-checks room availability under a per-room lock inside the same
+        transaction and rolls everything back if a room was just taken.
+
+    Returns {ok, booking_reference, confirmation_token, reused} or {ok:False,
+    error}."""
     ci, co = check_in.isoformat(), check_out.isoformat()
     nights = result["nights"]
     note = (special_requests or "").strip()[:1000] or None
@@ -627,46 +695,78 @@ def _persist_booking(check_in, check_out, result, rooms_req, guest,
     if assign_err:
         return {"ok": False, "error": assign_err}
 
-    try:
-        guest_id = _upsert_guest(guest)
-    except Exception as exc:  # noqa: BLE001
-        logger.exception("Guest upsert failed: %s", exc)
-        return {"ok": False, "error": "Could not save guest information. Please try again."}
+    booking_rows = []
+    for idx, assignment in enumerate(assignments):
+        req = rooms_req[idx] if idx < len(rooms_req) else {}
+        sub = assignment["line_total"]
+        gst, atl = _compute_taxes(sub, nights)
+        line_grand = round(sub + gst + atl, 2)
+        booking_rows.append({
+            "room_id": assignment["room_id"],
+            "check_in": ci,
+            "check_out": co,
+            "adults": _to_non_negative_int((req or {}).get("adults")) or 1,
+            "children": _to_non_negative_int((req or {}).get("children")) or 0,
+            "pets": _to_non_negative_int((req or {}).get("pets")) or 0,
+            "room_price": assignment["rate"],
+            "total_nights": nights,
+            "total_price": line_grand,
+            "booking_notes": note,
+        })
 
-    inserted = 0
+    guest_payload = {
+        "first_name": guest["first_name"],
+        "last_name": guest["last_name"],
+        "email": guest["email"],
+        "phone": guest["phone"],
+        "address": guest["address"],
+        "city": guest["city"],
+        "country": guest["country"],
+    }
+
     try:
-        for idx, assignment in enumerate(assignments):
-            req = rooms_req[idx] if idx < len(rooms_req) else {}
-            sub = assignment["line_total"]
-            gst, atl = _compute_taxes(sub, nights)
-            line_grand = round(sub + gst + atl, 2)
-            supabase.table("bookings").insert({
-                "guest_id": guest_id,
-                "room_id": assignment["room_id"],
-                "check_in": ci,
-                "check_out": co,
-                "adults": _to_non_negative_int((req or {}).get("adults")) or 1,
-                "children": _to_non_negative_int((req or {}).get("children")) or 0,
-                "pets": _to_non_negative_int((req or {}).get("pets")) or 0,
-                "booking_status": "confirmed",
-                "amount_paid": 0.0,
-                "room_price": assignment["rate"],
-                "total_nights": nights,
-                "total_price": line_grand,
-                "booking_reference": booking_ref,
-                "booking_notes": note,
-            }).execute()
-            inserted += 1
-        return {"ok": True, "guest_id": guest_id}
+        res = supabase.rpc("create_public_booking", {
+            "p_idempotency_key": idempotency_key,
+            "p_booking_reference": booking_ref,
+            "p_confirmation_token": confirmation_token,
+            "p_guest": guest_payload,
+            "p_bookings": booking_rows,
+        }).execute()
     except Exception as exc:  # noqa: BLE001
-        logger.exception("Booking insert failed after %s row(s): %s", inserted, exc)
-        if inserted:
-            _rollback_bookings_by_reference(booking_ref)
+        # Do not log guest PII or the confirmation token; log only the class.
+        message = str(exc)
+        logger.error("create_public_booking RPC failed: %s", type(exc).__name__)
+        if "room_unavailable" in message:
+            return {"ok": False,
+                    "error": "One or more requested rooms are no longer available for these dates."}
+        if "guest_email_conflict" in message:
+            # A UNIQUE constraint on guests.email is blocking the safe
+            # insert-only path. We refuse to fall back to overwriting the
+            # existing guest row. See FINAL REPORT / migration notes.
+            logger.error(
+                "guests.email appears to be UNIQUE — insert-only guest creation "
+                "is blocked. Booking refused to avoid overwriting guest PII."
+            )
+            return {"ok": False,
+                    "error": "We couldn't complete your booking online. Please call the lodge to reserve."}
         return {"ok": False, "error": "Could not store your booking. Please try again."}
+
+    data = res.data or {}
+    if not data.get("booking_reference"):
+        logger.error("create_public_booking returned no booking_reference")
+        return {"ok": False, "error": "Could not store your booking. Please try again."}
+
+    return {
+        "ok": True,
+        "booking_reference": data.get("booking_reference"),
+        "confirmation_token": data.get("confirmation_token"),
+        "reused": bool(data.get("reused")),
+    }
 
 
 @app.route('/confirm-booking', methods=['POST'])
 @app.route('/api/complete-booking', methods=['POST'])
+@limiter.limit("6 per minute")
 def handle_booking():
     """Finalize a reservation in Supabase. Re-runs validation immediately before write."""
     ok, err = _supabase_required()
@@ -690,15 +790,22 @@ def handle_booking():
     if not result.get("valid"):
         return jsonify({"success": False, "error": result.get("error")}), status
 
+    # Idempotency: same key => same reservation, even on double-click/retry.
+    idempotency_key = _normalize_idempotency_key(data.get("idempotency_key"))
+
     try:
         booking_ref = _generate_booking_reference()
     except RuntimeError as exc:
         logger.error(str(exc))
         return jsonify({"success": False, "error": "Could not create booking reference."}), 500
 
+    # High-entropy confirmation access token (never logged, never an internal ID).
+    confirmation_token = secrets.token_urlsafe(32)
+
     persisted = _persist_booking(
         check_in, check_out, result, rooms_req,
-        guest, data.get('special_requests'), booking_ref)
+        guest, data.get('special_requests'), booking_ref,
+        confirmation_token, idempotency_key)
 
     if not persisted.get("ok"):
         return jsonify({
@@ -706,13 +813,30 @@ def handle_booking():
             "error": persisted.get("error", "Could not store your booking."),
         }), 500
 
-    confirmation = fetch_confirmation_from_supabase(supabase, booking_ref)
-    email_sent, email_error = send_confirmation_email(app, confirmation)
+    # On an idempotent replay the RPC returns the ORIGINAL reference + token.
+    # Use `or` (not get's default) so a null/absent value in the RPC echo can
+    # never wipe the server-generated token we already persisted.
+    booking_ref = persisted.get("booking_reference") or booking_ref
+    confirmation_token = persisted.get("confirmation_token") or confirmation_token
+    reused = persisted.get("reused", False)
+
+    confirmation = fetch_confirmation_from_supabase(
+        supabase, booking_ref, token=confirmation_token)
+
+    # Only send the confirmation email on the first successful creation, so a
+    # retry/refresh does not re-email the guest. On a replay we report success
+    # so the guest is not shown a misleading "email failed" notice.
+    if reused:
+        email_sent, email_error = True, None
+    else:
+        email_sent, email_error = send_confirmation_email(app, confirmation)
+
+    redirect_url = f"/reservation-confirmation/{booking_ref}?token={confirmation_token}"
 
     return jsonify({
         "success": True,
         "booking_reference": booking_ref,
-        "redirect_url": f"/reservation-confirmation/{booking_ref}",
+        "redirect_url": redirect_url,
         "nights": result["nights"],
         "subtotal": result["subtotal"],
         "gst": result["gst"],
@@ -753,83 +877,21 @@ def _legacy_form_booking():
     if not result.get("valid"):
         return f"<h3>Error: {result.get('error')}</h3>", status
 
-    booking_ref = "BK-" + secrets.token_hex(3).upper()
-    _persist_booking(start_date, end_date, result,
-                     [{"name": room, "adults": adults, "children": kids, "pets": pets}],
-                     {}, None, booking_ref)
+    # This legacy non-JSON form does not collect the guest identity (name,
+    # email, address) that a reservation requires, so it cannot safely create a
+    # guest + booking. Direct the visitor to the standard online flow instead
+    # of writing an incomplete/blank guest record.
+    return (
+        "<h3>Please complete your reservation through our online booking page.</h3>"
+        "<p><a href='/booking'>Return to booking</a></p>"
+    ), 400
 
-    return f"""
-    <h1>Booking Saved!</h1>
-    <p>We have recorded your stay for the <strong>{room}</strong>.</p>
-    <p>Total for {result['nights']} night(s): <strong>${result['grand_total']:.2f}</strong></p>
-    <p>Booking reference: <strong>{booking_ref}</strong></p>
-    <a href='/'>Back to Home</a>
-    """
+# NOTE: The legacy prototype routes `/admin-dashboard` and
+# `/delete-booking/<id>` were removed. They operated on a local SQLite file
+# with NO authentication, which allowed any anonymous visitor to view prototype
+# data and delete rows. Real booking management is handled by the separate
+# authenticated LodgeOS admin, so these public routes are gone entirely.
 
-@app.route('/admin-dashboard')
-def admin_dashboard():
-    init_db()
-    conn = sqlite3.connect('bookings.db')
-    db = conn.cursor()
-    
-    # 1. Get all active bookings
-    db.execute("SELECT * FROM reservations")
-    all_bookings = db.fetchall()
-    
-    # Create a list of currently occupied room types
-    occupied_room_types = [b[1] for b in all_bookings]
-    
-    # 2. Define your 10 physical rooms and their types
-    # In a real motel, you'd have room numbers
-    rooms = [
-        {"no": "101", "type": "Classic Queen Smoking"},
-        {"no": "102", "type": "Classic Queen Non-Smoking"},
-        {"no": "103", "type": "Double Queen Smoking"},
-        {"no": "104", "type": "Double Queen Non-Smoking"},
-        {"no": "105", "type": "Classic Queen Smoking"},
-        {"no": "201", "type": "Classic Queen Non-Smoking"},
-        {"no": "202", "type": "Double Queen Smoking"},
-        {"no": "203", "type": "Double Queen Non-Smoking"},
-        {"no": "204", "type": "Maintenance"}, # Manually set one to maintenance
-        {"no": "301", "type": "Classic Queen Non-Smoking"}
-    ]
-
-    # 3. Logic to assign status
-    for room in rooms:
-        if room["type"] == "Maintenance":
-            room["status"] = "maintenance"
-        elif room["type"] in occupied_room_types:
-            room["status"] = "occupied"
-            # Remove from list so the next room of same type shows as available
-            occupied_room_types.remove(room["type"])
-        else:
-            room["status"] = "available"
-
-    # 4. Calculate Stats
-    total_revenue = sum(b[7] for b in all_bookings)
-    available_count = sum(1 for r in rooms if r["status"] == "available")
-    occupancy_rate = (len(all_bookings) / 10) * 100
-
-    conn.close()
-    return render_template('admin.html', 
-        bookings=all_bookings, 
-        revenue=total_revenue,
-        rooms=rooms,
-        occupancy=occupancy_rate,
-        available=available_count
-    )
-
-@app.route('/delete-booking/<int:booking_id>')
-def delete_booking(booking_id):
-    conn = sqlite3.connect('bookings.db')
-    db = conn.cursor()
-    # Delete the specific row using its ID
-    db.execute("DELETE FROM reservations WHERE id = ?", (booking_id,))
-    conn.commit()
-    conn.close()
-    
-    # Send them back to the dashboard to see it's gone
-    return redirect('/admin-dashboard')
 
 @app.route('/elements.html')
 def elements():
@@ -850,8 +912,10 @@ def final_details():
 
 
 @app.route('/reservation-confirmation/<booking_ref>')
+@limiter.limit("20 per minute")
 def reservation_confirmation(booking_ref):
-    """Refresh-safe confirmation page loaded from Supabase by booking_reference."""
+    """Refresh-safe confirmation page. Requires the high-entropy access token so
+    guest PII is not exposed by a (potentially guessable) booking reference."""
     ok, err = _supabase_required()
     if not ok:
         return render_template(
@@ -861,12 +925,13 @@ def reservation_confirmation(booking_ref):
             email_notice=None,
         ), 503
 
-    confirmation = fetch_confirmation_from_supabase(supabase, booking_ref)
+    token = request.args.get("token")
+    confirmation = fetch_confirmation_from_supabase(supabase, booking_ref, token=token)
     if not confirmation:
         return render_template(
             'reservation_confirmation.html',
             confirmation=None,
-            error="We could not find that reservation. Please check your booking reference or contact the lodge.",
+            error="We could not find that reservation. Please use the secure link from your confirmation, or contact the lodge.",
             email_notice=None,
         ), 404
 
@@ -880,13 +945,15 @@ def reservation_confirmation(booking_ref):
 
 
 @app.route('/reservation-confirmation/<booking_ref>/calendar.ics')
+@limiter.limit("20 per minute")
 def reservation_calendar(booking_ref):
-    """Downloadable calendar event for the confirmed stay."""
+    """Downloadable calendar event for the confirmed stay. Token-protected."""
     ok, err = _supabase_required()
     if not ok:
         return err, 503
 
-    confirmation = fetch_confirmation_from_supabase(supabase, booking_ref)
+    token = request.args.get("token")
+    confirmation = fetch_confirmation_from_supabase(supabase, booking_ref, token=token)
     if not confirmation:
         return "Reservation not found.", 404
 

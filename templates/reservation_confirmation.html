@@ -214,7 +214,7 @@
 
     <div class="btn-container no-print">
         <div class="btn-row">
-            <a class="btn-secondary" href="/reservation-confirmation/{{ confirmation.booking_reference }}/calendar.ics">
+            <a class="btn-secondary" href="/reservation-confirmation/{{ confirmation.booking_reference }}/calendar.ics?token={{ confirmation.access_token }}">
                 Add to Calendar
             </a>
             <button type="button" class="btn-confirm" onclick="window.print()">Print / Save as PDF</button>

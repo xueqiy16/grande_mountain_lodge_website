@@ -11,7 +11,9 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 import sys
+import uuid
 from datetime import date, timedelta
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -140,14 +142,19 @@ def main():
     print("Room assignment preview:", json.dumps(assignments, indent=2, default=str))
 
     booking_ref = _generate_booking_reference()
+    confirmation_token = secrets.token_urlsafe(32)
+    idempotency_key = "verify-" + uuid.uuid4().hex
     persisted = _persist_booking(
-        check_in, check_out, result, rooms_req, validated_guest, TEST_NOTE, booking_ref
+        check_in, check_out, result, rooms_req, validated_guest, TEST_NOTE,
+        booking_ref, confirmation_token, idempotency_key
     )
     if not persisted.get("ok"):
         print("FAIL: persist:", persisted)
         return 1
 
-    confirmation = fetch_confirmation_from_supabase(supabase, booking_ref)
+    booking_ref = persisted.get("booking_reference", booking_ref)
+    confirmation_token = persisted.get("confirmation_token", confirmation_token)
+    confirmation = fetch_confirmation_from_supabase(supabase, booking_ref, token=confirmation_token)
     if not confirmation:
         print("FAIL: could not load confirmation for", booking_ref)
         try:

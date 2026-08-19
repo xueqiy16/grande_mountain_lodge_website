@@ -7,6 +7,7 @@ Static lodge information lives in LODGE constants below.
 import logging
 import os
 import re
+import secrets
 import smtplib
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
@@ -126,6 +127,7 @@ def build_confirmation_context(booking_rows, guest):
     return {
         "lodge": LODG,
         "booking_reference": primary.get("booking_reference"),
+        "access_token": primary.get("confirmation_token"),
         "check_in": format_guest_date(primary.get("check_in")),
         "check_out": format_guest_date(primary.get("check_out")),
         "check_in_iso": (primary.get("check_in") or "")[:10],
@@ -147,14 +149,26 @@ def build_confirmation_context(booking_rows, guest):
     }
 
 
-def fetch_confirmation_from_supabase(supabase, booking_reference):
-    """Load all booking rows + guest for a booking_reference from Supabase."""
+def _confirmation_token_ok(stored, provided):
+    """Constant-time confirmation-token check. Absent token never grants access."""
+    if not stored or not provided:
+        return False
+    return secrets.compare_digest(str(stored), str(provided))
+
+
+def fetch_confirmation_from_supabase(supabase, booking_reference, token=None):
+    """Load all booking rows + guest for a booking_reference from Supabase.
+
+    Access is gated by a high-entropy `confirmation_token`: callers must supply
+    the matching token or this returns None (no PII is revealed by reference
+    alone). The token is compared in constant time and is never logged."""
     if not supabase or not booking_reference:
         return None
 
     ref = booking_reference.strip().upper()
     select_full = (
-        "booking_id, booking_reference, guest_id, room_id, check_in, check_out, "
+        "booking_id, booking_reference, confirmation_token, guest_id, room_id, "
+        "check_in, check_out, "
         "adults, children, pets, booking_status, amount_paid, total_nights, "
         "total_price, booking_notes, "
         "guests(guest_id, first_name, last_name, email, phone, address, city, country), "
@@ -162,7 +176,8 @@ def fetch_confirmation_from_supabase(supabase, booking_reference):
         "room_types!rooms_room_type_id_fkey(room_type_id, name, code, nightly_rate))"
     )
     select_basic = (
-        "booking_id, booking_reference, guest_id, room_id, check_in, check_out, "
+        "booking_id, booking_reference, confirmation_token, guest_id, room_id, "
+        "check_in, check_out, "
         "adults, children, pets, booking_status, amount_paid, total_nights, "
         "total_price, booking_notes, "
         "guests(guest_id, first_name, last_name, email, phone, address, city, country), "
@@ -186,6 +201,10 @@ def fetch_confirmation_from_supabase(supabase, booking_reference):
             rows = None
 
     if not rows:
+        return None
+
+    # Gate on the high-entropy token BEFORE returning any guest PII.
+    if not _confirmation_token_ok(rows[0].get("confirmation_token"), token):
         return None
 
     # Enrich room type names when the nested join was unavailable.
