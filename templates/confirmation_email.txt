@@ -37,5 +37,12 @@ Email: {{ confirmation.lodge.email }}
 DIRECTIONS
 {{ confirmation.lodge.address }}
 {{ confirmation.lodge.maps_url }}
+{% if confirmation.cancel_url %}
+
+NEED TO CANCEL?
+Cancel this reservation online:
+{{ confirmation.cancel_url }}
+Or call {{ confirmation.lodge.phone }} / email {{ confirmation.lodge.email }}.
+{% endif %}
 
 Grande Mountain Lodge Motel — Your mountain escape awaits

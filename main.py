@@ -1,11 +1,12 @@
 import os
 import re
 import uuid
+import hashlib
 import secrets
 import logging
 from collections import Counter
 from flask import Flask, render_template, request, jsonify, Response
-from datetime import datetime
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from flask_limiter import Limiter
@@ -14,6 +15,7 @@ from flask_limiter.util import get_remote_address
 from confirmation import (
     build_calendar_ics,
     fetch_confirmation_from_supabase,
+    format_guest_date,
     send_confirmation_email,
     validate_guest_payload,
 )
@@ -289,6 +291,148 @@ def _normalize_idempotency_key(value):
     if isinstance(value, str) and _IDEMPOTENCY_RE.match(value.strip()):
         return value.strip()
     return uuid.uuid4().hex
+
+
+def _hash_cancellation_token(token):
+    """SHA-256 hex digest of the raw cancellation token. Empty/missing -> ''."""
+    if not isinstance(token, str) or not token:
+        return ""
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _rpc_payload(res):
+    """Normalize PostgREST RPC .data which may be a dict or a one-row list."""
+    data = getattr(res, "data", None)
+    if isinstance(data, list):
+        return data[0] if data else {}
+    return data or {}
+
+
+def _public_site_url():
+    return (os.getenv("PUBLIC_SITE_URL") or "https://grandemountainlodge.com").rstrip("/")
+
+
+def _cancel_reservation_url(booking_ref, token):
+    return f"{_public_site_url()}/cancel-reservation/{booking_ref}?token={token}"
+
+
+def _parse_timestamptz(value):
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    return None
+
+
+_INVALID_CANCEL_MSG = (
+    "This cancellation link is invalid, has expired, or has already been used. "
+    "If you still need help, please call the lodge at 780-827-2007."
+)
+
+
+def _preview_public_cancellation(booking_ref, token):
+    """Read-only check of a guest cancellation link. Never mutates rows.
+
+    Returns a small dict (no guest contact PII) or None when the link is
+    invalid / expired / already used / mismatched.
+    """
+    if not supabase or not booking_ref or not token:
+        return None
+    token_hash = _hash_cancellation_token(token)
+    if len(token_hash) != 64:
+        return None
+    ref = booking_ref.strip().upper()
+
+    try:
+        cancel_rows = (
+            supabase.table("cancellation")
+            .select("id, booking_id, token_expiry, token_usage, cancellation_token_hash")
+            .eq("cancellation_token_hash", token_hash)
+            .limit(1)
+            .execute()
+            .data
+        ) or []
+    except Exception:  # noqa: BLE001
+        logger.error("cancellation preview lookup failed")
+        return None
+    if not cancel_rows:
+        return None
+
+    crow = cancel_rows[0]
+    if crow.get("token_usage") is True:
+        return None
+    expiry = _parse_timestamptz(crow.get("token_expiry"))
+    if expiry is None:
+        return None
+    if expiry.tzinfo is None:
+        expiry = expiry.replace(tzinfo=timezone.utc)
+    if expiry <= datetime.now(timezone.utc):
+        return None
+
+    try:
+        book_rows = (
+            supabase.table("bookings")
+            .select(
+                "booking_id, booking_reference, check_in, check_out, "
+                "booking_status, total_nights, "
+                "rooms(room_number, room_types!rooms_room_type_id_fkey(name))"
+            )
+            .eq("booking_reference", ref)
+            .execute()
+            .data
+        ) or []
+    except Exception:  # noqa: BLE001
+        try:
+            book_rows = (
+                supabase.table("bookings")
+                .select(
+                    "booking_id, booking_reference, check_in, check_out, "
+                    "booking_status, total_nights"
+                )
+                .eq("booking_reference", ref)
+                .execute()
+                .data
+            ) or []
+        except Exception:  # noqa: BLE001
+            logger.error("cancellation preview booking lookup failed")
+            return None
+
+    if not book_rows:
+        return None
+    ids = {row.get("booking_id") for row in book_rows}
+    if crow.get("booking_id") not in ids:
+        return None
+
+    statuses = {row.get("booking_status") for row in book_rows}
+    if "checked_in" in statuses:
+        state = "cannot_cancel"
+    elif statuses and statuses.issubset({"cancelled", "no_show", "checked_out"}):
+        state = "already_cancelled"
+    else:
+        state = "cancellable"
+
+    rooms = []
+    for row in book_rows:
+        room = row.get("rooms") or {}
+        room_type = room.get("room_types") or {}
+        rooms.append({"room_type_name": room_type.get("name") or room.get("code") or "Room"})
+
+    primary = book_rows[0]
+    nights = primary.get("total_nights")
+    return {
+        "state": state,
+        "booking_reference": ref,
+        "token": token,
+        "check_in": format_guest_date(primary.get("check_in")),
+        "check_out": format_guest_date(primary.get("check_out")),
+        "nights": nights,
+        "rooms": rooms,
+    }
 
 
 # --- Supabase-backed catalog / inventory (cached for the process lifetime) ---
@@ -674,7 +818,7 @@ def _generate_booking_reference():
 
 def _persist_booking(check_in, check_out, result, rooms_req, guest,
                      special_requests, booking_ref, confirmation_token,
-                     idempotency_key):
+                     idempotency_key, cancellation_token_hash):
     """Create the guest + all booking rows atomically via a Postgres RPC.
 
     Prices, taxes, booking_status and amount_paid are computed here (server
@@ -683,7 +827,9 @@ def _persist_booking(check_in, check_out, result, rooms_req, guest,
         original reservation instead of creating a duplicate),
       * INSERTs a new guest (never overwrites one by email),
       * re-checks room availability under a per-room lock inside the same
-        transaction and rolls everything back if a room was just taken.
+        transaction and rolls everything back if a room was just taken,
+      * inserts the hashed cancellation credential in the same transaction
+        so a booking is never stored without a cancel token.
 
     Returns {ok, booking_reference, confirmation_token, reused} or {ok:False,
     error}."""
@@ -731,9 +877,10 @@ def _persist_booking(check_in, check_out, result, rooms_req, guest,
             "p_confirmation_token": confirmation_token,
             "p_guest": guest_payload,
             "p_bookings": booking_rows,
+            "p_cancellation_token_hash": cancellation_token_hash,
         }).execute()
     except Exception as exc:  # noqa: BLE001
-        # Do not log guest PII or the confirmation token; log only the class.
+        # Do not log guest PII or tokens; log only the class.
         message = str(exc)
         logger.error("create_public_booking RPC failed: %s", type(exc).__name__)
         if "room_unavailable" in message:
@@ -751,7 +898,7 @@ def _persist_booking(check_in, check_out, result, rooms_req, guest,
                     "error": "We couldn't complete your booking online. Please call the lodge to reserve."}
         return {"ok": False, "error": "Could not store your booking. Please try again."}
 
-    data = res.data or {}
+    data = _rpc_payload(res)
     if not data.get("booking_reference"):
         logger.error("create_public_booking returned no booking_reference")
         return {"ok": False, "error": "Could not store your booking. Please try again."}
@@ -801,11 +948,14 @@ def handle_booking():
 
     # High-entropy confirmation access token (never logged, never an internal ID).
     confirmation_token = secrets.token_urlsafe(32)
+    # Separate high-entropy cancellation token; only the SHA-256 hash is stored.
+    cancellation_token = secrets.token_urlsafe(32)
+    cancellation_token_hash = _hash_cancellation_token(cancellation_token)
 
     persisted = _persist_booking(
         check_in, check_out, result, rooms_req,
         guest, data.get('special_requests'), booking_ref,
-        confirmation_token, idempotency_key)
+        confirmation_token, idempotency_key, cancellation_token_hash)
 
     if not persisted.get("ok"):
         return jsonify({
@@ -822,6 +972,10 @@ def handle_booking():
 
     confirmation = fetch_confirmation_from_supabase(
         supabase, booking_ref, token=confirmation_token)
+
+    if confirmation and cancellation_token:
+        confirmation["cancel_url"] = _cancel_reservation_url(
+            booking_ref, cancellation_token)
 
     # Only send the confirmation email on the first successful creation, so a
     # retry/refresh does not re-email the guest. On a replay we report success
@@ -966,6 +1120,92 @@ def reservation_calendar(booking_ref):
         ics,
         mimetype="text/calendar; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def _render_cancel_invalid(status=404):
+    return render_template(
+        "cancel_reservation.html",
+        state="invalid",
+        error=_INVALID_CANCEL_MSG,
+        preview=None,
+    ), status
+
+
+@app.route('/cancel-reservation/<booking_ref>', methods=['GET', 'POST'])
+@limiter.limit("10 per minute")
+def cancel_reservation(booking_ref):
+    """Guest self-service cancellation. GET previews; POST performs the cancel.
+
+    The raw token is never logged. GET never mutates booking or token state.
+    """
+    ok, err = _supabase_required()
+    if not ok:
+        return render_template(
+            "cancel_reservation.html",
+            state="invalid",
+            error=err,
+            preview=None,
+        ), 503
+
+    if request.method == "POST":
+        token = (request.form.get("token") or request.args.get("token") or "").strip()
+    else:
+        token = (request.args.get("token") or "").strip()
+
+    if not token:
+        return _render_cancel_invalid()
+
+    preview = _preview_public_cancellation(booking_ref, token)
+    if not preview:
+        return _render_cancel_invalid()
+
+    if request.method == "GET":
+        return render_template(
+            "cancel_reservation.html",
+            state=preview["state"],
+            error=None,
+            preview=preview,
+        )
+
+    # POST: re-validated above; now cancel atomically. Already-cancelled
+    # reservations still go through the RPC so the token is consumed.
+    if preview["state"] == "cannot_cancel":
+        return render_template(
+            "cancel_reservation.html",
+            state="cannot_cancel",
+            error=None,
+            preview=preview,
+        ), 409
+
+    token_hash = _hash_cancellation_token(token)
+    try:
+        res = supabase.rpc("cancel_public_booking", {
+            "p_booking_reference": preview["booking_reference"],
+            "p_cancellation_token_hash": token_hash,
+        }).execute()
+        data = _rpc_payload(res)
+    except Exception as exc:  # noqa: BLE001
+        message = str(exc)
+        logger.error("cancel_public_booking RPC failed: %s", type(exc).__name__)
+        if "cannot_cancel" in message:
+            return render_template(
+                "cancel_reservation.html",
+                state="cannot_cancel",
+                error=None,
+                preview=preview,
+            ), 409
+        return _render_cancel_invalid()
+
+    if not data.get("ok"):
+        return _render_cancel_invalid()
+
+    preview["state"] = "cancelled"
+    return render_template(
+        "cancel_reservation.html",
+        state="cancelled",
+        error=None,
+        preview=preview,
     )
 
 

@@ -48,6 +48,12 @@
     <p>{{ confirmation.lodge.address }}<br>
     <a href="{{ confirmation.lodge.maps_url }}">Open in Google Maps</a></p>
 
+    {% if confirmation.cancel_url %}
+    <h2 style="font-size: 18px; margin-top: 28px;">Need to cancel?</h2>
+    <p>You can cancel this reservation online using the link below, or by calling {{ confirmation.lodge.phone }} / emailing {{ confirmation.lodge.email }}.</p>
+    <p><a href="{{ confirmation.cancel_url }}" style="display: inline-block; background: #111; color: #fff; text-decoration: none; font-weight: bold; padding: 12px 18px; border-radius: 6px;">Cancel Reservation</a></p>
+    {% endif %}
+
     <p style="margin-top: 32px; color: #666; font-size: 13px;">Grande Mountain Lodge Motel — Your mountain escape awaits</p>
 </body>
 </html>

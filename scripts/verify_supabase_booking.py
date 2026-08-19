@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Verify Supabase booking persistence end-to-end.
 
-Requires SUPABASE_URL and SUPABASE_KEY in the environment or a .env file.
+Requires SUPABASE_URL and a server-side Supabase credential
+(SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY) in the environment
+or a .env file.
 
 Usage:
     python scripts/verify_supabase_booking.py
@@ -10,6 +12,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import secrets
 import sys
@@ -82,7 +85,11 @@ def _find_open_dates(rooms_req, nights=2, start_offset=30, max_offset=365):
 
 def main():
     if not supabase:
-        print("FAIL: Supabase client not configured. Set SUPABASE_URL and SUPABASE_KEY in .env")
+        print(
+            "FAIL: Supabase client not configured. "
+            "Set SUPABASE_URL and SUPABASE_SECRET_KEY "
+            "(or SUPABASE_SERVICE_ROLE_KEY) in .env"
+        )
         return 1
 
     # Preflight: room_types must be readable (requires service-role key)
@@ -143,10 +150,13 @@ def main():
 
     booking_ref = _generate_booking_reference()
     confirmation_token = secrets.token_urlsafe(32)
+    cancellation_token_hash = hashlib.sha256(
+        secrets.token_urlsafe(32).encode("utf-8")
+    ).hexdigest()
     idempotency_key = "verify-" + uuid.uuid4().hex
     persisted = _persist_booking(
         check_in, check_out, result, rooms_req, validated_guest, TEST_NOTE,
-        booking_ref, confirmation_token, idempotency_key
+        booking_ref, confirmation_token, idempotency_key, cancellation_token_hash
     )
     if not persisted.get("ok"):
         print("FAIL: persist:", persisted)
