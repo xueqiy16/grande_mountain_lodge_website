@@ -159,3 +159,32 @@ def test_availability_rate_limited(client):
             break
     main.limiter.reset()
     assert saw_429, "expected a 429 after exceeding the availability rate limit"
+
+
+def test_booking_paused_page_renders(client):
+    resp = client.get("/booking-paused")
+    assert resp.status_code == 200
+    body = resp.get_data(as_text=True)
+    assert "Online Bookings Under Renovation" in body
+    assert "Booking.com" in body
+    assert "Expedia" in body
+
+
+def test_booking_routes_redirect_while_paused(client):
+    for path in ("/booking", "/book", "/bookings", "/booker_contact", "/final_details"):
+        resp = client.get(path)
+        assert resp.status_code in (301, 302), path
+        assert "/booking-paused" in (resp.headers.get("Location") or "")
+
+
+def test_confirm_booking_disabled_while_paused(client):
+    main.limiter.enabled = False
+    try:
+        for path in ("/confirm-booking", "/api/complete-booking"):
+            resp = client.post(path, json={})
+            assert resp.status_code == 403, path
+            body = resp.get_json()
+            assert "temporarily disabled" in body["error"]
+    finally:
+        main.limiter.enabled = True
+

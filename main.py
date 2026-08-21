@@ -5,7 +5,7 @@ import hashlib
 import secrets
 import logging
 from collections import Counter
-from flask import Flask, render_template, request, jsonify, Response
+from flask import Flask, render_template, request, jsonify, Response, redirect
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -51,6 +51,14 @@ else:
     )
 
 app = Flask(__name__)
+
+# Temporary pause of the direct booking funnel. Set to False to restore
+# /booking, /booker_contact, /final_details, and booking submission.
+DIRECT_BOOKINGS_PAUSED = True
+PAUSED_BOOKING_ERROR = (
+    "Direct online bookings are temporarily disabled for maintenance. "
+    "Please book via Booking.com or Expedia."
+)
 
 
 # ---------------------------------------------------------------------------
@@ -671,8 +679,17 @@ def home():
 def travel_guide():
     return render_template('travel-guide.html')
 
+@app.route('/booking-paused')
+def booking_paused():
+    return render_template('booking_paused.html')
+
+
 @app.route('/booking')
+@app.route('/book')
+@app.route('/bookings')
 def booking():
+    if DIRECT_BOOKINGS_PAUSED:
+        return redirect('/booking-paused')
     return render_template('booking.html')
 
 @app.route('/contact')
@@ -681,6 +698,8 @@ def contact():
 
 @app.route('/booker_contact')
 def booker_contact():
+    if DIRECT_BOOKINGS_PAUSED:
+        return redirect('/booking-paused')
     return render_template('booker_contact.html')
 
 @app.route('/api/verify-cart', methods=['POST'])
@@ -916,6 +935,9 @@ def _persist_booking(check_in, check_out, result, rooms_req, guest,
 @limiter.limit("6 per minute")
 def handle_booking():
     """Finalize a reservation in Supabase. Re-runs validation immediately before write."""
+    if DIRECT_BOOKINGS_PAUSED:
+        return jsonify({"error": PAUSED_BOOKING_ERROR}), 403
+
     ok, err = _supabase_required()
     if not ok:
         return jsonify({"success": False, "error": err}), 503
@@ -1062,6 +1084,8 @@ def rooms():
 
 @app.route('/final_details')
 def final_details():
+    if DIRECT_BOOKINGS_PAUSED:
+        return redirect('/booking-paused')
     return render_template('final_details.html')
 
 
