@@ -449,8 +449,18 @@
                     localStorage.removeItem('bookingCart');
                     localStorage.removeItem('checkinDate');
                     localStorage.removeItem('checkoutDate');
-                    // The confirmation page needs the high-entropy token, which
-                    // only the server knows. Always use the server-provided
+                    if (data.next_step === 'payment') {
+                        if (data.payment_session_token) {
+                            sessionStorage.setItem(
+                                'gml_payment_session_token',
+                                data.payment_session_token
+                            );
+                        }
+                        window.location.href = data.payment_url || '/complete-payment';
+                        return;
+                    }
+                    // live_v6 confirmation page needs the high-entropy token,
+                    // which only the server knows. Always use the server-provided
                     // secure redirect_url; never rebuild a token-less URL from
                     // booking_reference on the client.
                     if (!data.redirect_url) {

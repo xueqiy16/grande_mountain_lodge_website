@@ -171,7 +171,14 @@ def test_booking_paused_page_renders(client):
 
 
 def test_booking_routes_redirect_while_paused(client):
-    for path in ("/booking", "/book", "/bookings", "/booker_contact", "/final_details"):
+    for path in (
+        "/booking",
+        "/book",
+        "/bookings",
+        "/booker_contact",
+        "/final_details",
+        "/complete-payment",
+    ):
         resp = client.get(path)
         assert resp.status_code in (301, 302), path
         assert "/booking-paused" in (resp.headers.get("Location") or "")
@@ -180,7 +187,7 @@ def test_booking_routes_redirect_while_paused(client):
 def test_confirm_booking_disabled_while_paused(client):
     main.limiter.enabled = False
     try:
-        for path in ("/confirm-booking", "/api/complete-booking"):
+        for path in ("/confirm-booking", "/api/complete-booking", "/api/complete-payment"):
             resp = client.post(path, json={})
             assert resp.status_code == 403, path
             body = resp.get_json()

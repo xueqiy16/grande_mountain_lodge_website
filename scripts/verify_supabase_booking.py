@@ -154,9 +154,20 @@ def main():
         secrets.token_urlsafe(32).encode("utf-8")
     ).hexdigest()
     idempotency_key = "verify-" + uuid.uuid4().hex
+    session_token_hash = None
+    from payment_session import (
+        generate_payment_session_token,
+        hash_payment_session_token,
+        uses_pending_payment_rpc,
+    )
+    if uses_pending_payment_rpc():
+        session_token_hash = hash_payment_session_token(
+            generate_payment_session_token()
+        )
     persisted = _persist_booking(
         check_in, check_out, result, rooms_req, validated_guest, TEST_NOTE,
-        booking_ref, confirmation_token, idempotency_key, cancellation_token_hash
+        booking_ref, confirmation_token, idempotency_key, cancellation_token_hash,
+        session_token_hash=session_token_hash,
     )
     if not persisted.get("ok"):
         print("FAIL: persist:", persisted)

@@ -5,7 +5,7 @@ import hashlib
 import secrets
 import logging
 from collections import Counter
-from flask import Flask, render_template, request, jsonify, Response, redirect
+from flask import Flask, render_template, request, jsonify, Response, redirect, make_response
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -18,6 +18,47 @@ from confirmation import (
     format_guest_date,
     send_confirmation_email,
     validate_guest_payload,
+)
+from payment_session import (
+    BookingRpcContractError,
+    generate_payment_session_token,
+    hash_payment_session_token,
+    is_session_token_hash,
+    pending_payment_browser_payload,
+    server_create_booking_result,
+    uses_pending_payment_rpc,
+)
+from payment_completion import (
+    PaymentCompletionError,
+    complete_pending_payment,
+    parse_browser_payment_request,
+    payment_completion_error_body,
+    require_pending_v7_contract,
+)
+from payment_ht import (
+    HostedTokenizationConfigError,
+    load_hosted_tokenization_browser_config,
+)
+from payment_expiry import (
+    PaymentExpiryError,
+    authorize_expiry_cron,
+    expiry_error_body,
+    require_pending_v7_for_expiry,
+    run_expire_abandoned_payment_sessions,
+)
+from payment_reconciliation import (
+    PaymentReconciliationError,
+    authorize_reconciliation_admin,
+    finalize_held_payment,
+    list_held_payment_registrations,
+    reconciliation_error_body,
+    release_held_payment_confirmed_failure,
+    require_pending_v7_for_reconciliation,
+)
+from payment_qa_bypass import (
+    QA_AUTH_PATH,
+    authorized as qa_bypass_authorized,
+    handle_qa_auth_request,
 )
 
 logger = logging.getLogger(__name__)
@@ -54,11 +95,34 @@ app = Flask(__name__)
 
 # Temporary pause of the direct booking funnel. Set to False to restore
 # /booking, /booker_contact, /final_details, and booking submission.
+# Do not flip this flag for the one-off sandbox QA booking; that uses the
+# short-lived PAYMENT_QA_BYPASS_SECRET cookie instead.
 DIRECT_BOOKINGS_PAUSED = True
 PAUSED_BOOKING_ERROR = (
     "Direct online bookings are temporarily disabled for maintenance. "
     "Please book via Booking.com or Expedia."
 )
+
+
+def _booking_funnel_blocked():
+    """Pause still applies unless a valid QA booking cookie is present.
+
+    DIRECT_BOOKINGS_PAUSED is never cleared here. QA auth does not skip
+    payment, admin checks, or the pending_v7 contract.
+    """
+    if not DIRECT_BOOKINGS_PAUSED:
+        return False
+    return not qa_bypass_authorized(request)
+
+
+# create_public_booking contract. live_v6 is the current production 6-arg
+# function (confirmed, no payment session). pending_v7 is sql/003's 7-arg
+# function. Default live_v6 so this app cannot call a function that does not
+# exist until 003 is applied. Cutover is explicit: apply 003, set
+# CREATE_PUBLIC_BOOKING_CONTRACT=pending_v7, keep bookings paused until the
+# expire caller is deployed and an external ~5-minute scheduler is active.
+# Never auto-fallback to 6-arg after a 7-arg failure:
+# 6-arg confirms the stay without a payment session.
 
 
 # ---------------------------------------------------------------------------
@@ -306,6 +370,29 @@ def _hash_cancellation_token(token):
     if not isinstance(token, str) or not token:
         return ""
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _create_public_booking_rpc_args(
+    idempotency_key,
+    booking_ref,
+    confirmation_token,
+    guest_payload,
+    booking_rows,
+    cancellation_token_hash,
+    session_token_hash=None,
+):
+    """Named arguments for create_public_booking. 6-arg live vs 7-arg pending."""
+    args = {
+        "p_idempotency_key": idempotency_key,
+        "p_booking_reference": booking_ref,
+        "p_confirmation_token": confirmation_token,
+        "p_guest": guest_payload,
+        "p_bookings": booking_rows,
+        "p_cancellation_token_hash": cancellation_token_hash,
+    }
+    if uses_pending_payment_rpc():
+        args["p_session_token_hash"] = session_token_hash
+    return args
 
 
 def _rpc_payload(res):
@@ -688,7 +775,7 @@ def booking_paused():
 @app.route('/book')
 @app.route('/bookings')
 def booking():
-    if DIRECT_BOOKINGS_PAUSED:
+    if _booking_funnel_blocked():
         return redirect('/booking-paused')
     return render_template('booking.html')
 
@@ -698,7 +785,7 @@ def contact():
 
 @app.route('/booker_contact')
 def booker_contact():
-    if DIRECT_BOOKINGS_PAUSED:
+    if _booking_funnel_blocked():
         return redirect('/booking-paused')
     return render_template('booker_contact.html')
 
@@ -837,7 +924,8 @@ def _generate_booking_reference():
 
 def _persist_booking(check_in, check_out, result, rooms_req, guest,
                      special_requests, booking_ref, confirmation_token,
-                     idempotency_key, cancellation_token_hash):
+                     idempotency_key, cancellation_token_hash,
+                     session_token_hash=None):
     """Create the guest + all booking rows atomically via a Postgres RPC.
 
     Prices, taxes, booking_status and amount_paid are computed here (server
@@ -850,8 +938,11 @@ def _persist_booking(check_in, check_out, result, rooms_req, guest,
       * inserts the hashed cancellation credential in the same transaction
         so a booking is never stored without a cancel token.
 
-    Returns {ok, booking_reference, confirmation_token, reused} or {ok:False,
-    error}."""
+    live_v6 omits p_session_token_hash. pending_v7 requires the SHA-256 of
+    the browser payment-session token (never the raw token).
+
+    Returns a server dict. Callers must filter before any browser response.
+    """
     ci, co = check_in.isoformat(), check_out.isoformat()
     nights = result["nights"]
     note = (special_requests or "").strip()[:1000] or None
@@ -890,29 +981,48 @@ def _persist_booking(check_in, check_out, result, rooms_req, guest,
     }
 
     try:
-        res = supabase.rpc("create_public_booking", {
-            "p_idempotency_key": idempotency_key,
-            "p_booking_reference": booking_ref,
-            "p_confirmation_token": confirmation_token,
-            "p_guest": guest_payload,
-            "p_bookings": booking_rows,
-            "p_cancellation_token_hash": cancellation_token_hash,
-        }).execute()
+        pending_rpc = uses_pending_payment_rpc()
+    except BookingRpcContractError:
+        logger.error("invalid CREATE_PUBLIC_BOOKING_CONTRACT")
+        return {"ok": False, "error": "Online booking is temporarily unavailable."}
+    if pending_rpc:
+        if not is_session_token_hash(session_token_hash):
+            return {"ok": False, "error": "Could not store your booking. Please try again."}
+
+    try:
+        res = supabase.rpc(
+            "create_public_booking",
+            _create_public_booking_rpc_args(
+                idempotency_key,
+                booking_ref,
+                confirmation_token,
+                guest_payload,
+                booking_rows,
+                cancellation_token_hash,
+                session_token_hash=session_token_hash,
+            ),
+        ).execute()
     except Exception as exc:  # noqa: BLE001
-        # Do not log guest PII or tokens; log only the class.
+        # Do not log guest PII, tokens, hashes, or internal identifiers.
         message = str(exc)
         logger.error("create_public_booking RPC failed: %s", type(exc).__name__)
         if "room_unavailable" in message:
             return {"ok": False,
                     "error": "One or more requested rooms are no longer available for these dates."}
         if "guest_email_conflict" in message:
-            # A UNIQUE constraint on guests.email is blocking the safe
-            # insert-only path. We refuse to fall back to overwriting the
-            # existing guest row. See FINAL REPORT / migration notes.
             logger.error(
                 "guests.email appears to be UNIQUE — insert-only guest creation "
                 "is blocked. Booking refused to avoid overwriting guest PII."
             )
+            return {"ok": False,
+                    "error": "We couldn't complete your booking online. Please call the lodge to reserve."}
+        if "reservation_expired" in message:
+            return {"ok": False,
+                    "error": "This reservation hold has expired. Please start a new booking."}
+        if "payment_session_stale_processing" in message:
+            return {"ok": False,
+                    "error": "Payment is still being processed. Please wait a moment and try again."}
+        if "reservation_state_inconsistent" in message:
             return {"ok": False,
                     "error": "We couldn't complete your booking online. Please call the lodge to reserve."}
         return {"ok": False, "error": "Could not store your booking. Please try again."}
@@ -922,12 +1032,7 @@ def _persist_booking(check_in, check_out, result, rooms_req, guest,
         logger.error("create_public_booking returned no booking_reference")
         return {"ok": False, "error": "Could not store your booking. Please try again."}
 
-    return {
-        "ok": True,
-        "booking_reference": data.get("booking_reference"),
-        "confirmation_token": data.get("confirmation_token"),
-        "reused": bool(data.get("reused")),
-    }
+    return server_create_booking_result(data)
 
 
 @app.route('/confirm-booking', methods=['POST'])
@@ -935,8 +1040,17 @@ def _persist_booking(check_in, check_out, result, rooms_req, guest,
 @limiter.limit("6 per minute")
 def handle_booking():
     """Finalize a reservation in Supabase. Re-runs validation immediately before write."""
-    if DIRECT_BOOKINGS_PAUSED:
+    if _booking_funnel_blocked():
         return jsonify({"error": PAUSED_BOOKING_ERROR}), 403
+
+    try:
+        pending_rpc = uses_pending_payment_rpc()
+    except BookingRpcContractError:
+        logger.error("invalid CREATE_PUBLIC_BOOKING_CONTRACT")
+        return jsonify({
+            "success": False,
+            "error": "Online booking is temporarily unavailable.",
+        }), 503
 
     ok, err = _supabase_required()
     if not ok:
@@ -974,10 +1088,17 @@ def handle_booking():
     cancellation_token = secrets.token_urlsafe(32)
     cancellation_token_hash = _hash_cancellation_token(cancellation_token)
 
+    payment_session_token = None
+    payment_session_token_hash = None
+    if pending_rpc:
+        payment_session_token = generate_payment_session_token()
+        payment_session_token_hash = hash_payment_session_token(payment_session_token)
+
     persisted = _persist_booking(
         check_in, check_out, result, rooms_req,
         guest, data.get('special_requests'), booking_ref,
-        confirmation_token, idempotency_key, cancellation_token_hash)
+        confirmation_token, idempotency_key, cancellation_token_hash,
+        session_token_hash=payment_session_token_hash)
 
     if not persisted.get("ok"):
         return jsonify({
@@ -991,6 +1112,26 @@ def handle_booking():
     booking_ref = persisted.get("booking_reference") or booking_ref
     confirmation_token = persisted.get("confirmation_token") or confirmation_token
     reused = persisted.get("reused", False)
+
+    if pending_rpc:
+        # Email and the public confirmation page wait until credential
+        # registration + finalize succeed. Do not put confirmation_token in
+        # the browser payload or redirect URL.
+        browser = pending_payment_browser_payload(
+            {
+                "ok": True,
+                "booking_reference": booking_ref,
+                "reused": reused,
+                "token_rotated": persisted.get("token_rotated"),
+            },
+            raw_payment_session_token=payment_session_token,
+            nights=result["nights"],
+            subtotal=result["subtotal"],
+            gst=result["gst"],
+            atl=result["atl"],
+            grand_total=result["grand_total"],
+        )
+        return jsonify(browser), 200
 
     confirmation = fetch_confirmation_from_supabase(
         supabase, booking_ref, token=confirmation_token)
@@ -1084,9 +1225,182 @@ def rooms():
 
 @app.route('/final_details')
 def final_details():
-    if DIRECT_BOOKINGS_PAUSED:
+    if _booking_funnel_blocked():
         return redirect('/booking-paused')
     return render_template('final_details.html')
+
+
+@app.route('/complete-payment')
+def complete_payment():
+    """Intermediate payment step after pending_payment booking create.
+
+    Hosted Tokenization iframe is created only after a payment-session token
+    is present in sessionStorage. The raw token must not appear in this URL.
+    Page is pending_v7 only.
+    """
+    if _booking_funnel_blocked():
+        return redirect('/booking-paused')
+    try:
+        enabled = uses_pending_payment_rpc()
+    except BookingRpcContractError:
+        logger.error("invalid CREATE_PUBLIC_BOOKING_CONTRACT")
+        return render_template("complete_payment.html", payment_enabled=False), 503
+    if not enabled:
+        return render_template("complete_payment.html", payment_enabled=False), 404
+    try:
+        ht = load_hosted_tokenization_browser_config()
+    except HostedTokenizationConfigError:
+        logger.error("hosted tokenization config invalid")
+        return render_template("complete_payment.html", payment_enabled=False), 503
+    response = make_response(
+        render_template(
+            "complete_payment.html",
+            payment_enabled=True,
+            ht_iframe_src=ht.iframe_src,
+            ht_origin=ht.postmessage_origin,
+            ht_token_min_length=ht.token_min_length,
+            ht_token_max_length=ht.token_max_length,
+        )
+    )
+    response.headers["Content-Security-Policy"] = f"frame-src {ht.postmessage_origin}"
+    return response
+
+
+@app.route('/api/complete-payment', methods=['POST'])
+@limiter.limit("6 per minute")
+def handle_complete_payment():
+    """Claim the payment session, register the credential, then finalize.
+
+    Browser may send only payment_session_token + dataKey. Unavailable on
+    live_v6. Claim commits before any Moneris HTTP.
+    """
+    if _booking_funnel_blocked():
+        return jsonify({"success": False, "error": PAUSED_BOOKING_ERROR}), 403
+
+    try:
+        require_pending_v7_contract()
+    except PaymentCompletionError as exc:
+        return jsonify(payment_completion_error_body(exc)), exc.status
+
+    ok, err = _supabase_required()
+    if not ok:
+        return jsonify({"success": False, "error": err}), 503
+
+    try:
+        token, data_key = parse_browser_payment_request(
+            request.get_json(silent=True)
+        )
+        body = complete_pending_payment(
+            payment_session_token=token,
+            data_key=data_key,
+            supabase=supabase,
+            fetch_confirmation=lambda ref, tok: fetch_confirmation_from_supabase(
+                supabase, ref, token=tok
+            ),
+            send_email=lambda confirmation: send_confirmation_email(
+                app, confirmation
+            ),
+        )
+    except PaymentCompletionError as exc:
+        return jsonify(payment_completion_error_body(exc)), exc.status
+    return jsonify(body), 200
+
+
+@app.route(QA_AUTH_PATH, methods=["GET", "POST"])
+@limiter.limit("5 per minute")
+def payment_qa_auth():
+    """TEMPORARY unlisted QA login. Remove after the sandbox booking test.
+
+    GET is a native password form (no secret in HTML/JS). POST in the body
+    sets an HttpOnly cookie. Query strings are ignored. Does not unpause
+    public traffic and does not skip payment.
+    """
+    return handle_qa_auth_request()
+
+
+@app.route("/api/internal/expire-payment-sessions", methods=["POST"])
+@limiter.limit("30 per minute")
+def handle_expire_payment_sessions():
+    """External scheduler entry for expire_abandoned_payment_sessions().
+
+    Bearer PAYMENT_EXPIRY_CRON_SECRET only. Ignores request bodies and query
+    strings. Does not inspect cards, call Moneris, or cancel rows in Python.
+    Available while DIRECT_BOOKINGS_PAUSED is True. Requires pending_v7.
+    """
+    try:
+        authorize_expiry_cron(request.headers.get("Authorization"))
+        require_pending_v7_for_expiry()
+    except PaymentExpiryError as exc:
+        return jsonify(expiry_error_body(exc)), exc.status
+
+    ok, _err = _supabase_required()
+    if not ok:
+        unavailable = PaymentExpiryError(
+            "Payment session expiry is unavailable.", status=503
+        )
+        return jsonify(expiry_error_body(unavailable)), 503
+
+    try:
+        body = run_expire_abandoned_payment_sessions(supabase)
+    except PaymentExpiryError as exc:
+        return jsonify(expiry_error_body(exc)), exc.status
+    return jsonify(body), 200
+
+
+def _reconciliation_guard():
+    authorize_reconciliation_admin(request.headers.get("Authorization"))
+    require_pending_v7_for_reconciliation()
+    ok, _err = _supabase_required()
+    if not ok:
+        raise PaymentReconciliationError(
+            "Payment reconciliation is unavailable.", status=503
+        )
+
+
+@app.route("/api/internal/payment-reconciliation/held", methods=["GET"])
+@limiter.limit("30 per minute")
+def handle_list_held_payment_registrations():
+    """Read-only held PENDING / RECONCILIATION_REQUIRED list for ops."""
+    try:
+        _reconciliation_guard()
+        body = list_held_payment_registrations(supabase)
+    except PaymentReconciliationError as exc:
+        return jsonify(reconciliation_error_body(exc)), exc.status
+    return jsonify(body), 200
+
+
+@app.route(
+    "/api/internal/payment-reconciliation/<session_id>/finalize",
+    methods=["POST"],
+)
+@limiter.limit("30 per minute")
+def handle_finalize_held_payment(session_id):
+    """Finalize only when the current attempt is already SUCCEEDED."""
+    try:
+        _reconciliation_guard()
+        body = finalize_held_payment(
+            supabase, session_id, request.get_json(silent=True)
+        )
+    except PaymentReconciliationError as exc:
+        return jsonify(reconciliation_error_body(exc)), exc.status
+    return jsonify(body), 200
+
+
+@app.route(
+    "/api/internal/payment-reconciliation/<session_id>/release-confirmed-failure",
+    methods=["POST"],
+)
+@limiter.limit("30 per minute")
+def handle_release_held_payment(session_id):
+    """Release held inventory after a human-confirmed processor failure."""
+    try:
+        _reconciliation_guard()
+        body = release_held_payment_confirmed_failure(
+            supabase, session_id, request.get_json(silent=True)
+        )
+    except PaymentReconciliationError as exc:
+        return jsonify(reconciliation_error_body(exc)), exc.status
+    return jsonify(body), 200
 
 
 @app.route('/reservation-confirmation/<booking_ref>')

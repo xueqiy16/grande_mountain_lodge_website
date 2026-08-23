@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Payment | Grande Mountain Lodge</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #fcfcfc; color: #1a1a1a; }
+        .container { max-width: 720px; margin: 80px auto; padding: 0 20px; }
+        .card {
+            background: #fff;
+            border: 1px solid #868e96;
+            border-radius: 12px;
+            padding: 32px;
+        }
+        h1 { font-size: 1.6rem; margin: 0 0 12px; }
+        p { color: #555; line-height: 1.6; }
+        .status { margin-top: 16px; padding: 12px; background: #f4f4f4; }
+        #moneris-host { margin-top: 16px; }
+        #monerisFrame { width: 100%; height: 180px; border: 1px solid #ccc; }
+        #tokenize-card {
+            margin-top: 12px;
+            padding: 8px 16px;
+            font-size: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>Complete your payment</h1>
+            <p>
+                Your rooms are held while you complete payment. Card number,
+                expiry, and CVD are entered only inside the Moneris form.
+            </p>
+            <p id="pay-status" class="status">Waiting to connect payment.</p>
+            <div id="moneris-host"></div>
+        </div>
+    </div>
+    <script src="/static/complete_payment_ht.js"></script>
+    <script>
+(function () {
+  var status = document.getElementById("pay-status");
+  var paymentEnabled = {{ payment_enabled|default(false)|tojson }};
+  var htIframeSrc = {{ ht_iframe_src|default("")|tojson }};
+  var htOrigin = {{ ht_origin|default("")|tojson }};
+  var tokenMinLength = {{ ht_token_min_length|default(25)|tojson }};
+  var tokenMaxLength = {{ ht_token_max_length|default(28)|tojson }};
+  var submitState = "idle";
+  var token = null;
+
+  function setStatus(text) {
+    if (status) {
+      status.textContent = text;
+    }
+  }
+
+  function lockTokenizeButton() {
+    var button = document.getElementById("tokenize-card");
+    if (button) {
+      button.disabled = true;
+    }
+  }
+
+  function unlockTokenizeButton() {
+    var button = document.getElementById("tokenize-card");
+    if (button) {
+      button.disabled = false;
+    }
+  }
+
+  if (!paymentEnabled) {
+    setStatus("Payment is not available.");
+    return;
+  }
+  token = sessionStorage.getItem("gml_payment_session_token");
+  if (!token) {
+    setStatus("Payment session is missing or expired. Please return to booking and try again.");
+    return;
+  }
+  if (!htIframeSrc || !htOrigin || !window.GmlHostedTokenization) {
+    setStatus("Payment is not available.");
+    return;
+  }
+
+  var host = document.getElementById("moneris-host");
+  var frame = document.createElement("iframe");
+  frame.id = "monerisFrame";
+  frame.title = "Moneris Hosted Tokenization";
+  frame.scrolling = "no";
+  frame.src = htIframeSrc;
+  host.appendChild(frame);
+  var button = document.createElement("button");
+  button.type = "button";
+  button.id = "tokenize-card";
+  button.textContent = "Complete payment";
+  host.appendChild(button);
+  setStatus("Enter card details in the secure form, then complete payment.");
+
+  function beginSubmission(dataKey) {
+    if (submitState !== "idle") {
+      return;
+    }
+    submitState = "submitting";
+    lockTokenizeButton();
+    window.submitMonerisDataKey(dataKey);
+  }
+
+  function onDefinitiveRetryableFailure(message) {
+    submitState = "idle";
+    unlockTokenizeButton();
+    setStatus(message);
+  }
+
+  function onAmbiguousOrTerminalFailure(message) {
+    submitState = "locked";
+    lockTokenizeButton();
+    setStatus(message);
+  }
+
+  window.submitMonerisDataKey = function (dataKey) {
+    return fetch("/api/complete-payment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        payment_session_token: token,
+        dataKey: dataKey
+      })
+    }).then(function (r) {
+      return r.json().then(function (data) { return { ok: r.ok, status: r.status, data: data }; });
+    }).then(function (result) {
+      if (result.ok && result.data && result.data.success && result.data.redirect_url) {
+        sessionStorage.removeItem("gml_payment_session_token");
+        window.location.href = result.data.redirect_url;
+        return;
+      }
+      var message = (result.data && result.data.error) ||
+        "We could not complete payment. Please try again.";
+      if (result.data && result.data.retry_payment === true) {
+        onDefinitiveRetryableFailure(message);
+        return;
+      }
+      if (result.status >= 500 || result.status === 502) {
+        onAmbiguousOrTerminalFailure(
+          "We could not confirm this payment. Do not enter your card again. Please call the lodge at 780-827-2007."
+        );
+        return;
+      }
+      onAmbiguousOrTerminalFailure(message);
+    }).catch(function () {
+      onAmbiguousOrTerminalFailure(
+        "We could not confirm this payment. Do not enter your card again. Please call the lodge at 780-827-2007."
+      );
+    });
+  };
+
+  function onMessage(event) {
+    if (submitState !== "idle") {
+      return;
+    }
+    var ht = window.GmlHostedTokenization;
+    var payload = ht.acceptMessage(event, htOrigin, frame.contentWindow);
+    if (payload === null) {
+      return;
+    }
+    if (typeof payload !== "object") {
+      setStatus("Hosted Tokenization failed");
+      return;
+    }
+    var dataKey = ht.extractDataKey(payload, tokenMinLength, tokenMaxLength);
+    if (dataKey) {
+      beginSubmission(dataKey);
+      return;
+    }
+    setStatus(ht.safeFailureStatus(payload));
+  }
+
+  function requestTokenize() {
+    if (submitState !== "idle") {
+      return;
+    }
+    if (!frame || !frame.contentWindow) {
+      setStatus("Hosted Tokenization failed");
+      return;
+    }
+    frame.contentWindow.postMessage("tokenize", htOrigin);
+  }
+
+  window.addEventListener("message", onMessage, false);
+  button.addEventListener("click", requestTokenize);
+})();
+    </script>
+</body>
+</html>
