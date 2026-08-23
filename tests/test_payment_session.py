@@ -28,6 +28,7 @@ from payment_session import (
     server_create_booking_result,
     to_browser_booking_create_response,
 )
+from postgrest.exceptions import APIError
 
 
 WEBSITE_ROOT = Path(__file__).resolve().parents[1]
@@ -467,9 +468,188 @@ def test_persist_failure_logs_omit_internal_ids(monkeypatch, caplog):
             session_token_hash="a" * 64,
         )
     assert out["ok"] is False
+    assert out["error"] == "Could not store your booking. Please try again."
+    assert "type=RuntimeError" in caplog.text
     _assert_no_sentinels(caplog.text)
     assert "canonical_booking_id" not in caplog.text
     assert SESSION_HASH not in caplog.text
+    assert CONFIRMATION_TOKEN not in caplog.text
+    assert GUEST["email"] not in caplog.text
+
+
+def test_safe_postgrest_fields_are_allowlisted_only():
+    exc = APIError(
+        {
+            "code": "PGRST202",
+            "message": "Could not find the function public.create_public_booking",
+            "details": "Searched for the function with parameters p_session_token_hash",
+            "hint": "Perhaps you meant to call the 6-argument overload",
+            "email": GUEST["email"],
+            "payment_session_token": RAW_TOKEN,
+            "session_token_hash": SESSION_HASH,
+            "confirmation_token": CONFIRMATION_TOKEN,
+            "cancellation_token": "cancel-token-must-not-leak",
+            "dataKey": DATA_KEY,
+            "paymentMethodId": MONERIS_PM,
+            "issuerId": MONERIS_ISSUER,
+            "canonical_booking_id": CANONICAL,
+            "guest": dict(GUEST),
+        }
+    )
+    fields = main._safe_postgrest_error_fields(exc)
+    assert set(fields) == {"code", "message", "details", "hint"}
+    assert fields["code"] == "PGRST202"
+    assert "create_public_booking" in fields["message"]
+    assert "p_session_token_hash" in fields["details"]
+    assert "6-argument" in fields["hint"]
+    blob = json.dumps(fields)
+    _assert_no_sentinels(blob)
+    assert GUEST["email"] not in blob
+    assert RAW_TOKEN not in blob
+    assert CONFIRMATION_TOKEN not in blob
+
+
+def test_safe_postgrest_fields_skip_non_text_and_do_not_use_str_exc():
+    class Weird:
+        code = {"nested": RAW_TOKEN}
+        message = ["payload", GUEST]
+        details = {"dataKey": DATA_KEY}
+        hint = True
+
+        def __str__(self):
+            return (
+                f"{GUEST['email']} {RAW_TOKEN} {SESSION_HASH} "
+                f"{CONFIRMATION_TOKEN} {DATA_KEY}"
+            )
+
+    fields = main._safe_postgrest_error_fields(Weird())
+    assert fields == {
+        "code": None,
+        "message": None,
+        "details": None,
+        "hint": None,
+    }
+
+
+def test_persist_apierror_logs_safe_postgrest_metadata(monkeypatch, caplog):
+    monkeypatch.setenv("CREATE_PUBLIC_BOOKING_CONTRACT", "pending_v7")
+    digest = hash_payment_session_token(generate_payment_session_token())
+    exc = APIError(
+        {
+            "code": "PGRST202",
+            "message": (
+                "Could not find the function public.create_public_booking "
+                "without a matching signature in the schema cache"
+            ),
+            "details": (
+                "Searched for the function public.create_public_booking with "
+                "parameters p_idempotency_key, p_booking_reference, "
+                "p_confirmation_token, p_guest, p_bookings, "
+                "p_cancellation_token_hash, p_session_token_hash"
+            ),
+            "hint": (
+                "Try a different schema or check the function name and "
+                "parameter names in the OpenAPI spec"
+            ),
+            "email": GUEST["email"],
+            "payment_session_token": RAW_TOKEN,
+            "session_token_hash": digest,
+            "dataKey": DATA_KEY,
+            "paymentMethodId": MONERIS_PM,
+            "issuerId": MONERIS_ISSUER,
+            "canonical_booking_id": CANONICAL,
+        }
+    )
+    fake = FakeSupabase(exc=exc)
+    monkeypatch.setattr(main, "supabase", fake)
+    monkeypatch.setattr(
+        main,
+        "_assign_physical_rooms",
+        lambda *a, **k: (
+            [{"room_id": "room-1", "line_total": 200.0, "rate": 100.0}],
+            None,
+        ),
+    )
+    with caplog.at_level(logging.ERROR, logger=main.logger.name):
+        out = main._persist_booking(
+            date.today() + timedelta(days=10),
+            date.today() + timedelta(days=12),
+            ITINERARY,
+            [{"adults": 2, "children": 0, "pets": 0}],
+            GUEST,
+            None,
+            "BK-ABC123",
+            CONFIRMATION_TOKEN,
+            "idem-" + "a" * 32,
+            "c" * 64,
+            session_token_hash=digest,
+        )
+    assert out["ok"] is False
+    assert out["error"] == "Could not store your booking. Please try again."
+    text = caplog.text
+    assert "type=APIError" in text
+    assert "code=PGRST202" in text
+    assert "message=Could not find the function public.create_public_booking" in text
+    assert "p_session_token_hash" in text
+    assert "schema cache" in text
+    assert GUEST["email"] not in text
+    assert GUEST["phone"] not in text
+    assert GUEST["first_name"] not in text
+    assert RAW_TOKEN not in text
+    assert digest not in text
+    assert CONFIRMATION_TOKEN not in text
+    assert DATA_KEY not in text
+    assert MONERIS_PM not in text
+    assert MONERIS_ISSUER not in text
+    _assert_no_sentinels(text)
+    assert fake.rpc_calls and fake.rpc_calls[0][1]["p_guest"]["email"] == GUEST["email"]
+
+
+def test_confirm_booking_apierror_browser_stays_generic(
+    client, unpaused, monkeypatch, caplog
+):
+    monkeypatch.setenv("CREATE_PUBLIC_BOOKING_CONTRACT", "pending_v7")
+    fake = FakeSupabase(
+        exc=APIError(
+            {
+                "code": "42883",
+                "message": "function public.create_public_booking does not exist",
+                "details": None,
+                "hint": "No function matches the given name and argument types",
+                "email": GUEST["email"],
+                "dataKey": DATA_KEY,
+            }
+        )
+    )
+    monkeypatch.setattr(main, "supabase", fake)
+    monkeypatch.setattr(main, "_supabase_required", lambda: (True, None))
+    monkeypatch.setattr(
+        main, "_validate_itinerary", lambda *a, **k: (ITINERARY, 200)
+    )
+    monkeypatch.setattr(main, "_generate_booking_reference", lambda: "BK-ABC123")
+    monkeypatch.setattr(
+        main,
+        "_assign_physical_rooms",
+        lambda *a, **k: (
+            [{"room_id": "room-1", "line_total": 200.0, "rate": 100.0}],
+            None,
+        ),
+    )
+    with caplog.at_level(logging.ERROR, logger=main.logger.name):
+        resp = client.post("/confirm-booking", json=_booking_json())
+    assert resp.status_code == 500
+    body = resp.get_json()
+    assert body["success"] is False
+    assert body["error"] == "Could not store your booking. Please try again."
+    raw = resp.get_data(as_text=True)
+    assert "42883" not in raw
+    assert "does not exist" not in raw
+    assert GUEST["email"] not in raw
+    _assert_no_sentinels(body)
+    assert "code=42883" in caplog.text
+    assert "function public.create_public_booking does not exist" in caplog.text
+    assert GUEST["email"] not in caplog.text
+    assert DATA_KEY not in caplog.text
 
 
 def _patch_booking_flow(monkeypatch, persist_return, *, contract="pending_v7"):

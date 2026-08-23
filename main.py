@@ -922,6 +922,50 @@ def _generate_booking_reference():
     raise RuntimeError("Could not generate a unique booking reference.")
 
 
+# TEMPORARY create_public_booking diagnostics. Log only PostgREST's four
+# metadata attributes (code/SQLSTATE, message, details, hint). Never log
+# str(exc), exc.json(), _raw_error, RPC args, tokens, or guest PII.
+_SAFE_POSTGREST_ERROR_ATTRS = ("code", "message", "details", "hint")
+_SAFE_POSTGREST_ERROR_FIELD_MAX = 800
+
+
+def _safe_postgrest_error_fields(exc):
+    """Return allowlisted PostgREST fields only. Skip non-text values."""
+    out = {}
+    for name in _SAFE_POSTGREST_ERROR_ATTRS:
+        out[name] = _safe_postgrest_error_text(getattr(exc, name, None))
+    return out
+
+
+def _safe_postgrest_error_text(value):
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, int) and not isinstance(value, bool):
+        value = str(value)
+    if not isinstance(value, str):
+        return None
+    text = value.replace("\r", " ").replace("\n", " ").strip()
+    if not text:
+        return None
+    if len(text) > _SAFE_POSTGREST_ERROR_FIELD_MAX:
+        return text[:_SAFE_POSTGREST_ERROR_FIELD_MAX]
+    return text
+
+
+def _log_create_public_booking_rpc_failure(exc):
+    """TEMPORARY: type name plus PostgREST metadata. Not str(exc)."""
+    fields = _safe_postgrest_error_fields(exc)
+    logger.error(
+        "create_public_booking RPC failed: type=%s code=%s message=%s "
+        "details=%s hint=%s",
+        type(exc).__name__,
+        fields["code"],
+        fields["message"],
+        fields["details"],
+        fields["hint"],
+    )
+
+
 def _persist_booking(check_in, check_out, result, rooms_req, guest,
                      special_requests, booking_ref, confirmation_token,
                      idempotency_key, cancellation_token_hash,
@@ -1003,9 +1047,10 @@ def _persist_booking(check_in, check_out, result, rooms_req, guest,
             ),
         ).execute()
     except Exception as exc:  # noqa: BLE001
-        # Do not log guest PII, tokens, hashes, or internal identifiers.
+        # Identifier mapping still uses str(exc) locally and is not logged.
+        # Diagnostic logs use allowlisted PostgREST fields only.
+        _log_create_public_booking_rpc_failure(exc)
         message = str(exc)
-        logger.error("create_public_booking RPC failed: %s", type(exc).__name__)
         if "room_unavailable" in message:
             return {"ok": False,
                     "error": "One or more requested rooms are no longer available for these dates."}
