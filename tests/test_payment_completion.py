@@ -15,8 +15,15 @@ from types import SimpleNamespace
 
 import pytest
 
+import cancellation_capability
 import main
 import payment_completion
+from cancellation_capability import (
+    create_placeholder_hash,
+    derive_cancellation_token,
+    hash_cancellation_token,
+    persist_cancellation_capability_hash,
+)
 from payment_completion import (
     ALLOWED_BROWSER_KEYS,
     BROWSER_COMPLETE_KEYS,
@@ -42,6 +49,8 @@ CLAIM_A = "c1a11111-1111-4111-a111-111111111111"
 CLAIM_B = "c1b22222-2222-4222-b222-222222222222"
 ATTEMPT_A = "a1111111-1111-4111-8111-111111111111"
 ATTEMPT_B = "b2222222-2222-4222-8222-222222222222"
+CANCELLATION_SECRET = "k" * 32
+BOOKING_REF = "BK-ABC123"
 
 SENTINELS = (
     CANONICAL,
@@ -83,20 +92,74 @@ class Result:
 
 
 class FakeQuery:
-    def __init__(self, owner):
+    def __init__(self, owner, table):
         self.owner = owner
+        self.table = table
+        self._op = "select"
+        self._payload = None
+        self._filters = []
+        self._limit = None
+        self._order = None
 
     def select(self, *_a, **_k):
+        self._op = "select"
         return self
 
-    def eq(self, *_a, **_k):
+    def update(self, payload):
+        self._op = "update"
+        self._payload = payload
         return self
 
-    def limit(self, *_a, **_k):
+    def eq(self, key, value):
+        self._filters.append((key, value))
         return self
+
+    def order(self, column, **_k):
+        self._order = column
+        return self
+
+    def limit(self, n):
+        self._limit = n
+        return self
+
+    def _rows(self):
+        if self.table == "bookings":
+            return self.owner.bookings
+        if self.table == "cancellation":
+            return self.owner.cancellation
+        return []
+
+    def _matches(self, row):
+        for key, value in self._filters:
+            if row.get(key) != value:
+                return False
+        return True
 
     def execute(self):
-        return Result(list(self.owner.bookings))
+        self.owner.order.append(("table", self.table, self._op))
+        if self._op == "update":
+            allowed = {"cancellation_token_hash"}
+            extra = set((self._payload or {}).keys()) - allowed
+            if extra:
+                raise AssertionError(f"unexpected cancellation update fields {extra}")
+            hook = getattr(self.owner, "before_cancellation_update", None)
+            if self.table == "cancellation" and hook:
+                hook()
+            rows = [row for row in self._rows() if self._matches(row)]
+            for row in rows:
+                row.update(self._payload or {})
+            self.owner.cancellation_updates.append(
+                (dict(self._payload or {}), list(self._filters))
+            )
+            if self._limit is not None:
+                rows = rows[: self._limit]
+            return Result(rows)
+        rows = [row for row in self._rows() if self._matches(row)]
+        if self._order:
+            rows = sorted(rows, key=lambda row: str(row.get(self._order) or ""))
+        if self._limit is not None:
+            rows = rows[: self._limit]
+        return Result(rows)
 
 
 class FakeRpc:
@@ -182,12 +245,27 @@ class FakeSupabase:
         }
         self.bookings = [
             {
-                "booking_reference": "BK-ABC123",
+                "booking_id": CANONICAL,
+                "booking_reference": BOOKING_REF,
                 "confirmation_token": CONFIRMATION_TOKEN,
                 "reservation_id": RESERVATION,
                 "booking_status": "confirmed",
             }
         ]
+        self.cancellation = [
+            {
+                "id": "cancel-row-1",
+                "booking_id": CANONICAL,
+                "cancellation_token_hash": create_placeholder_hash(
+                    CANCELLATION_SECRET, BOOKING_REF
+                ),
+                "token_usage": False,
+                "token_expiry": "2027-01-01T22:00:00+00:00",
+                "token_used_at": None,
+            }
+        ]
+        self.cancellation_updates = []
+        self.before_cancellation_update = None
 
     def _new_claim_id(self):
         if self.next_claim_ids:
@@ -312,8 +390,7 @@ class FakeSupabase:
         return FakeRpc(self, name, args)
 
     def table(self, name):
-        self.order.append(("table", name, None))
-        return FakeQuery(self)
+        return FakeQuery(self, name)
 
 
 class RegisterBox:
@@ -363,6 +440,7 @@ def unpaused(monkeypatch):
 @pytest.fixture
 def pending_v7(monkeypatch):
     monkeypatch.setenv("CREATE_PUBLIC_BOOKING_CONTRACT", "pending_v7")
+    monkeypatch.setenv("CANCELLATION_TOKEN_SECRET", CANCELLATION_SECRET)
 
 
 @pytest.fixture
@@ -1322,4 +1400,306 @@ def test_parse_error_before_claim_is_explicitly_retryable():
         parse_browser_payment_request({"payment_session_token": RAW_TOKEN})
     assert ctx.value.status == 400
     assert ctx.value.retry_payment is True
+
+
+def _expected_cancel():
+    raw = derive_cancellation_token(CANCELLATION_SECRET, RESERVATION)
+    return raw, hash_cancellation_token(raw)
+
+
+def _expected_placeholder(booking_ref=BOOKING_REF):
+    return create_placeholder_hash(CANCELLATION_SECRET, booking_ref)
+
+
+def test_pending_v7_email_has_cancel_url(pending_v7):
+    fake = FakeSupabase()
+    register = RegisterBox()
+    emails = []
+    body = _run_complete(fake, register, emails)
+    raw, token_hash = _expected_cancel()
+    assert len(emails) == 1
+    assert emails[0]["cancel_url"] == (
+        f"https://grandemountainlodge.com/cancel-reservation/BK-ABC123?token={raw}"
+    )
+    assert fake.cancellation[0]["cancellation_token_hash"] == token_hash
+    assert fake.cancellation[0]["token_expiry"] == "2027-01-01T22:00:00+00:00"
+    assert fake.cancellation[0]["token_used_at"] is None
+    assert fake.cancellation[0]["token_usage"] is False
+    dumped = json.dumps(body)
+    assert raw not in dumped
+    assert token_hash not in dumped
+    assert "cancel_url" not in body
+    assert leaked_internal_keys(body) == set()
+
+
+def test_hash_persist_occurs_before_smtp(pending_v7):
+    fake = FakeSupabase()
+    register = RegisterBox()
+    raw, token_hash = _expected_cancel()
+    events = []
+
+    def send_email(confirmation):
+        assert fake.cancellation[0]["cancellation_token_hash"] == token_hash
+        events.append("smtp")
+        return True, None
+
+    complete_pending_payment(
+        payment_session_token=RAW_TOKEN,
+        data_key=DATA_KEY,
+        supabase=fake,
+        fetch_confirmation=lambda ref, tok: {
+            "booking_reference": ref,
+            "guest_email": "ada@example.com",
+        },
+        send_email=send_email,
+        register_credential=register,
+    )
+    update_idx = next(
+        i
+        for i, item in enumerate(fake.order)
+        if item[0] == "table" and item[1] == "cancellation" and item[2] == "update"
+    )
+    mark_idx = next(
+        i
+        for i, item in enumerate(fake.order)
+        if item[0] == "rpc" and item[1] == "mark_reservation_confirmation_email_sent"
+    )
+    assert events == ["smtp"]
+    assert update_idx < mark_idx
+    assert fake.cancellation_updates
+    assert fake.cancellation[0]["token_expiry"] == "2027-01-01T22:00:00+00:00"
+
+
+def test_retry_after_mark_sent_failure_keeps_same_cancel_url(pending_v7):
+    fake = FakeSupabase()
+    fake.next_claim_ids = [CLAIM_A, CLAIM_B]
+    fake.mark_sent_exc = APIError({"message": "stale_email_claim", "code": "P0001"})
+    register = RegisterBox()
+    emails = []
+    first = _run_complete(fake, register, emails)
+    assert first["email_sent"] is True
+    assert fake.email_row["delivery_status"] == "SENDING"
+    fake.mark_sent_exc = None
+    fake.email_sending_fresh = False
+    fake.claim_result = {
+        "ok": True,
+        "already_finalized": True,
+        "session_id": PAYMENT_SESSION,
+        "reservation_id": RESERVATION,
+        "canonical_booking_id": CANONICAL,
+        "session_status": "CONSUMED",
+    }
+    second = _run_complete(fake, register, emails)
+    raw, token_hash = _expected_cancel()
+    assert len(emails) == 2
+    assert emails[0]["cancel_url"] == emails[1]["cancel_url"]
+    assert raw in emails[0]["cancel_url"]
+    assert fake.cancellation[0]["cancellation_token_hash"] == token_hash
+    hashes = [
+        payload["cancellation_token_hash"]
+        for payload, _filters in fake.cancellation_updates
+    ]
+    assert hashes
+    assert set(hashes) == {token_hash}
+    assert second["success"] is True
+    assert raw not in json.dumps(second)
+
+
+def test_already_persisted_current_hash_is_idempotent(pending_v7):
+    raw, token_hash = _expected_cancel()
+    fake = FakeSupabase()
+    fake.cancellation[0]["cancellation_token_hash"] = token_hash
+    expiry = fake.cancellation[0]["token_expiry"]
+    register = RegisterBox()
+    emails = []
+    _run_complete(fake, register, emails)
+    assert emails[0]["cancel_url"].endswith(f"token={raw}")
+    assert fake.cancellation_updates == []
+    assert fake.cancellation[0]["cancellation_token_hash"] == token_hash
+    assert fake.cancellation[0]["token_expiry"] == expiry
+    assert fake.cancellation[0]["token_used_at"] is None
+
+
+def test_incompatible_existing_hash_fails_closed(pending_v7):
+    fake = FakeSupabase()
+    fake.cancellation[0]["cancellation_token_hash"] = "not-a-valid-sha256-hex"
+    register = RegisterBox()
+    emails = []
+    body = _run_complete(fake, register, emails)
+    assert emails == []
+    assert body["success"] is True
+    assert body["email_sent"] is False
+    assert fake.cancellation_updates == []
+    assert fake.cancellation[0]["cancellation_token_hash"] == "not-a-valid-sha256-hex"
+    assert fake.bookings[0]["booking_status"] == "confirmed"
+    assert fake.cancellation[0]["token_expiry"] == "2027-01-01T22:00:00+00:00"
+
+
+def test_arbitrary_valid_hash_is_not_placeholder(pending_v7):
+    other = hash_cancellation_token("arbitrary-other-valid-token")
+    fake = FakeSupabase()
+    fake.cancellation[0]["cancellation_token_hash"] = other
+    register = RegisterBox()
+    emails = []
+    body = _run_complete(fake, register, emails)
+    assert emails == []
+    assert body["email_sent"] is False
+    assert body["success"] is True
+    assert fake.cancellation_updates == []
+    assert fake.cancellation[0]["cancellation_token_hash"] == other
+    assert fake.cancellation[0]["token_expiry"] == "2027-01-01T22:00:00+00:00"
+
+
+def test_update_is_conditioned_on_expected_old_hash(pending_v7):
+    fake = FakeSupabase()
+    register = RegisterBox()
+    emails = []
+    _run_complete(fake, register, emails)
+    _payload, filters = fake.cancellation_updates[0]
+    filter_map = dict(filters)
+    assert filter_map["cancellation_token_hash"] == _expected_placeholder()
+    assert filter_map["id"] == "cancel-row-1"
+    assert filter_map["booking_id"] == CANONICAL
+    assert filter_map["token_usage"] is False
+    _, current = _expected_cancel()
+    assert _payload["cancellation_token_hash"] == current
+
+
+def test_concurrent_placeholder_to_current_is_idempotent(pending_v7):
+    raw, current = _expected_cancel()
+    fake = FakeSupabase()
+
+    def race():
+        fake.cancellation[0]["cancellation_token_hash"] = current
+
+    fake.before_cancellation_update = race
+    register = RegisterBox()
+    emails = []
+    body = _run_complete(fake, register, emails)
+    assert body["email_sent"] is True
+    assert emails[0]["cancel_url"].endswith(f"token={raw}")
+    assert fake.cancellation[0]["cancellation_token_hash"] == current
+    assert fake.cancellation[0]["token_expiry"] == "2027-01-01T22:00:00+00:00"
+    _payload, filters = fake.cancellation_updates[0]
+    assert dict(filters)["cancellation_token_hash"] == _expected_placeholder()
+    assert _payload["cancellation_token_hash"] == current
+
+
+def test_concurrent_placeholder_to_other_hash_fails_closed(pending_v7):
+    other = hash_cancellation_token("raced-to-another-hash")
+    fake = FakeSupabase()
+
+    def race():
+        fake.cancellation[0]["cancellation_token_hash"] = other
+
+    fake.before_cancellation_update = race
+    register = RegisterBox()
+    emails = []
+    body = _run_complete(fake, register, emails)
+    assert emails == []
+    assert body["email_sent"] is False
+    assert body["success"] is True
+    assert fake.cancellation[0]["cancellation_token_hash"] == other
+    assert fake.bookings[0]["booking_status"] == "confirmed"
+    assert fake.cancellation[0]["token_expiry"] == "2027-01-01T22:00:00+00:00"
+
+
+def test_used_cancellation_row_is_not_mutated(pending_v7):
+    fake = FakeSupabase()
+    fake.cancellation[0]["token_usage"] = True
+    fake.cancellation[0]["token_used_at"] = "2026-08-01T00:00:00+00:00"
+    original = dict(fake.cancellation[0])
+    register = RegisterBox()
+    emails = []
+    body = _run_complete(fake, register, emails)
+    assert emails == []
+    assert body["email_sent"] is False
+    assert body["success"] is True
+    assert fake.cancellation_updates == []
+    assert fake.cancellation[0] == original
+    assert fake.bookings[0]["booking_status"] == "confirmed"
+
+
+def test_missing_secret_skips_smtp_and_keeps_confirmed(pending_v7, monkeypatch):
+    monkeypatch.delenv("CANCELLATION_TOKEN_SECRET", raising=False)
+    fake = FakeSupabase()
+    register = RegisterBox()
+    emails = []
+    body = _run_complete(fake, register, emails)
+    assert emails == []
+    assert body["success"] is True
+    assert body["email_sent"] is False
+    assert fake.cancellation_updates == []
+    assert fake.cancellation[0]["cancellation_token_hash"] == _expected_placeholder()
+    assert fake.bookings[0]["booking_status"] == "confirmed"
+    assert fake.email_row["delivery_status"] == "PENDING"
+
+
+def test_short_secret_skips_smtp(pending_v7, monkeypatch):
+    monkeypatch.setenv("CANCELLATION_TOKEN_SECRET", "s" * 31)
+    fake = FakeSupabase()
+    register = RegisterBox()
+    emails = []
+    body = _run_complete(fake, register, emails)
+    assert emails == []
+    assert body["email_sent"] is False
+    assert body["success"] is True
+    assert fake.cancellation_updates == []
+
+
+def test_cancel_url_and_hash_omitted_from_browser_and_logs(pending_v7, caplog):
+    fake = FakeSupabase()
+    register = RegisterBox()
+    emails = []
+    with caplog.at_level(logging.DEBUG):
+        body = _run_complete(fake, register, emails)
+    raw, token_hash = _expected_cancel()
+    dumped = json.dumps(body)
+    assert raw not in dumped
+    assert token_hash not in dumped
+    assert CANCELLATION_SECRET not in dumped
+    assert "CANCELLATION_TOKEN_SECRET" not in dumped
+    assert leaked_internal_keys(body) == set()
+    assert RESERVATION not in dumped
+    assert CANONICAL not in dumped
+    assert SESSION_HASH not in dumped
+    assert DATA_KEY not in dumped
+    assert raw not in caplog.text
+    assert token_hash not in caplog.text
+    assert CANCELLATION_SECRET not in caplog.text
+    assert RESERVATION not in caplog.text
+    assert CANONICAL not in caplog.text
+
+
+def test_missing_secret_log_is_safe(pending_v7, monkeypatch, caplog):
+    monkeypatch.delenv("CANCELLATION_TOKEN_SECRET", raising=False)
+    fake = FakeSupabase()
+    register = RegisterBox()
+    with caplog.at_level(logging.ERROR, logger=payment_completion.logger.name):
+        _run_complete(fake, register, [])
+    assert "cancellation capability secret is missing or too short" in caplog.text
+    assert CANCELLATION_SECRET not in caplog.text
+    raw, token_hash = _expected_cancel()
+    assert raw not in caplog.text
+    assert token_hash not in caplog.text
+    _assert_no_sentinels(caplog.text)
+
+
+def test_previous_valid_hash_is_not_overwritten(pending_v7):
+    other = hash_cancellation_token("already-valid-other-token")
+    fake = FakeSupabase()
+    fake.cancellation[0]["cancellation_token_hash"] = other
+    expiry = fake.cancellation[0]["token_expiry"]
+    _, current = _expected_cancel()
+    with pytest.raises(cancellation_capability.CancellationCapabilityError):
+        persist_cancellation_capability_hash(
+            fake,
+            RESERVATION,
+            current,
+            expected_placeholder_hash=_expected_placeholder(),
+            previous_hash=other,
+        )
+    assert fake.cancellation_updates == []
+    assert fake.cancellation[0]["cancellation_token_hash"] == other
+    assert fake.cancellation[0]["token_expiry"] == expiry
 

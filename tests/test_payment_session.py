@@ -609,6 +609,7 @@ def test_confirm_booking_apierror_browser_stays_generic(
     client, unpaused, monkeypatch, caplog
 ):
     monkeypatch.setenv("CREATE_PUBLIC_BOOKING_CONTRACT", "pending_v7")
+    monkeypatch.setenv("CANCELLATION_TOKEN_SECRET", "k" * 32)
     fake = FakeSupabase(
         exc=APIError(
             {
@@ -654,6 +655,8 @@ def test_confirm_booking_apierror_browser_stays_generic(
 
 def _patch_booking_flow(monkeypatch, persist_return, *, contract="pending_v7"):
     monkeypatch.setenv("CREATE_PUBLIC_BOOKING_CONTRACT", contract)
+    if contract == "pending_v7":
+        monkeypatch.setenv("CANCELLATION_TOKEN_SECRET", "k" * 32)
     monkeypatch.setattr(main, "_supabase_required", lambda: (True, None))
     monkeypatch.setattr(
         main, "_validate_itinerary", lambda *a, **k: (ITINERARY, 200)
@@ -774,8 +777,151 @@ def test_live_v6_still_emails_and_confirms(client, unpaused, monkeypatch):
     assert RESERVATION not in (body.get("redirect_url") or "")
     assert "canonical_booking_id" not in body
     assert len(emails) == 1
+    assert emails[0]["cancel_url"].startswith(
+        "https://grandemountainlodge.com/cancel-reservation/BK-ABC123?token="
+    )
+    assert "token=" in emails[0]["cancel_url"]
     for sentinel in (CANONICAL, RESERVATION, PAYMENT_SESSION, SESSION_HASH, MONERIS_PM, MONERIS_ISSUER, DATA_KEY):
         assert sentinel not in json.dumps(body)
+        assert sentinel not in emails[0]["cancel_url"]
+
+
+def test_pending_v7_missing_secret_does_not_persist(
+    client, unpaused, monkeypatch, caplog
+):
+    monkeypatch.delenv("CANCELLATION_TOKEN_SECRET", raising=False)
+    calls = []
+
+    def persist(*_a, **_k):
+        calls.append("persist")
+        raise AssertionError("_persist_booking must not be called")
+
+    emails = _patch_booking_flow(monkeypatch, persist, contract="pending_v7")
+    monkeypatch.delenv("CANCELLATION_TOKEN_SECRET", raising=False)
+    with caplog.at_level(logging.ERROR, logger=main.logger.name):
+        resp = client.post("/confirm-booking", json=_booking_json())
+    assert resp.status_code == 503
+    body = resp.get_json()
+    assert body == {
+        "success": False,
+        "error": "Online booking is temporarily unavailable.",
+    }
+    assert calls == []
+    assert emails == []
+    assert "payment_session_token" not in body
+    assert "cancellation capability secret is missing or too short" in caplog.text
+    assert "CANCELLATION_TOKEN_SECRET" not in caplog.text
+    assert "k" * 32 not in caplog.text
+    assert "k" * 32 not in (resp.get_data(as_text=True) or "")
+
+
+def test_pending_v7_short_secret_does_not_persist(
+    client, unpaused, monkeypatch, caplog
+):
+    calls = []
+
+    def persist(*_a, **_k):
+        calls.append("persist")
+        raise AssertionError("_persist_booking must not be called")
+
+    emails = _patch_booking_flow(monkeypatch, persist, contract="pending_v7")
+    monkeypatch.setenv("CANCELLATION_TOKEN_SECRET", "s" * 31)
+    with caplog.at_level(logging.ERROR, logger=main.logger.name):
+        resp = client.post("/confirm-booking", json=_booking_json())
+    assert resp.status_code == 503
+    body = resp.get_json()
+    assert body["success"] is False
+    assert body["error"] == "Online booking is temporarily unavailable."
+    assert calls == []
+    assert emails == []
+    assert "payment_session_token" not in body
+    assert "s" * 31 not in caplog.text
+    assert "s" * 31 not in (resp.get_data(as_text=True) or "")
+
+
+def test_pending_v7_create_persists_identifiable_placeholder_hash(
+    client, unpaused, monkeypatch
+):
+    from cancellation_capability import create_placeholder_hash
+
+    secret = "k" * 32
+    monkeypatch.setenv("CANCELLATION_TOKEN_SECRET", secret)
+    captured = {}
+
+    def persist(*args, **kwargs):
+        captured["hash"] = args[9]
+        captured["ref"] = args[6]
+        return {
+            "ok": True,
+            "booking_reference": args[6],
+            "reused": False,
+            "token_rotated": True,
+        }
+
+    _patch_booking_flow(monkeypatch, persist, contract="pending_v7")
+    resp = client.post("/confirm-booking", json=_booking_json())
+    assert resp.status_code == 200
+    expected = create_placeholder_hash(secret, captured["ref"])
+    assert captured["hash"] == expected
+    raw = resp.get_data(as_text=True) or ""
+    assert captured["hash"] not in raw
+    assert secret not in raw
+    assert "CANCELLATION_TOKEN_SECRET" not in raw
+
+
+def test_live_v6_create_works_without_cancellation_secret(
+    client, unpaused, monkeypatch
+):
+    monkeypatch.delenv("CANCELLATION_TOKEN_SECRET", raising=False)
+    captured = {}
+
+    def persist(*args, **kwargs):
+        captured["called"] = True
+        captured["hash"] = args[9]
+        return {
+            "ok": True,
+            "booking_reference": args[6],
+            "confirmation_token": CONFIRMATION_TOKEN,
+            "reused": False,
+        }
+
+    emails = _patch_booking_flow(monkeypatch, persist, contract="live_v6")
+    monkeypatch.delenv("CANCELLATION_TOKEN_SECRET", raising=False)
+    resp = client.post("/confirm-booking", json=_booking_json())
+    assert resp.status_code == 200
+    assert captured.get("called") is True
+    assert len(captured["hash"]) == 64
+    assert emails[0]["cancel_url"]
+    assert "next_step" not in resp.get_json()
+
+
+def test_live_v6_create_does_not_use_placeholder_hash(
+    client, unpaused, monkeypatch
+):
+    from cancellation_capability import create_placeholder_hash
+
+    secret = "k" * 32
+    monkeypatch.setenv("CANCELLATION_TOKEN_SECRET", secret)
+    captured = {}
+
+    def persist(*args, **kwargs):
+        captured["hash"] = args[9]
+        captured["ref"] = args[6]
+        return {
+            "ok": True,
+            "booking_reference": args[6],
+            "confirmation_token": CONFIRMATION_TOKEN,
+            "reused": False,
+        }
+
+    emails = _patch_booking_flow(monkeypatch, persist, contract="live_v6")
+    resp = client.post("/confirm-booking", json=_booking_json())
+    assert resp.status_code == 200
+    placeholder = create_placeholder_hash(secret, captured["ref"])
+    assert captured["hash"] != placeholder
+    assert len(captured["hash"]) == 64
+    assert emails[0]["cancel_url"]
+    assert captured["hash"] not in emails[0]["cancel_url"]
 
 
 def _sandbox_ht_env(monkeypatch):

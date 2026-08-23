@@ -16,6 +16,15 @@ import os
 import uuid
 from typing import Callable, Optional
 
+from cancellation_capability import (
+    CancellationCapabilityError,
+    cancellation_url,
+    configured_cancellation_token_secret,
+    create_placeholder_hash,
+    derive_cancellation_token,
+    hash_cancellation_token,
+    persist_cancellation_capability_hash,
+)
 from payment_session import (
     BOOKING_RPC_PENDING_V7,
     BookingRpcContractError,
@@ -446,8 +455,28 @@ def _attempt_confirmation_email(
     try:
         confirmation = fetch_confirmation(booking_reference, confirmation_token)
         if confirmation:
-            sent, _err = send_email(confirmation)
-            sent = bool(sent)
+            secret = configured_cancellation_token_secret()
+            if secret is None:
+                logger.error("cancellation capability secret is missing or too short")
+            else:
+                raw_token = derive_cancellation_token(secret, reservation_id)
+                token_hash = hash_cancellation_token(raw_token)
+                persist_cancellation_capability_hash(
+                    supabase,
+                    reservation_id,
+                    token_hash,
+                    expected_placeholder_hash=create_placeholder_hash(
+                        secret, booking_reference
+                    ),
+                )
+                confirmation["cancel_url"] = cancellation_url(
+                    booking_reference, raw_token
+                )
+                sent, _err = send_email(confirmation)
+                sent = bool(sent)
+    except CancellationCapabilityError:
+        logger.error("cancellation capability persist failed")
+        sent = False
     except Exception as exc:  # noqa: BLE001
         logger.error("confirmation email provider failed: %s", type(exc).__name__)
         sent = False

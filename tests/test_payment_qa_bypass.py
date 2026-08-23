@@ -114,6 +114,8 @@ def _sandbox_ht_env(monkeypatch):
 
 def _patch_booking_flow(monkeypatch, persist_return, *, contract="pending_v7"):
     monkeypatch.setenv("CREATE_PUBLIC_BOOKING_CONTRACT", contract)
+    if contract == "pending_v7":
+        monkeypatch.setenv("CANCELLATION_TOKEN_SECRET", "k" * 32)
     monkeypatch.setattr(main, "_supabase_required", lambda: (True, None))
     monkeypatch.setattr(
         main, "_validate_itinerary", lambda *a, **k: (ITINERARY, 200)

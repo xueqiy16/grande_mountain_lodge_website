@@ -5,6 +5,10 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 import main
+from cancellation_capability import (
+    derive_cancellation_token,
+    hash_cancellation_token,
+)
 
 
 @pytest.fixture
@@ -338,3 +342,23 @@ def test_lodgeos_compatible_cancelled_status(client, store):
     row = store["bookings"][0]
     assert row["booking_status"] == "cancelled"
     assert row["cancelled_at"] is not None
+
+
+def test_derived_pending_v7_token_is_accepted_by_cancel_route(client, store):
+    reservation = "11111111-2222-3333-4444-555555555555"
+    secret = "k" * 32
+    token = derive_cancellation_token(secret, reservation)
+    token_hash = hash_cancellation_token(token)
+    assert token_hash == main._hash_cancellation_token(token)
+    expiry = (datetime.now(timezone.utc) + timedelta(days=10)).isoformat()
+    _seed_reservation(store, cancel_token=token, expiry=expiry)
+    assert store["cancellation"][0]["cancellation_token_hash"] == token_hash
+    assert store["cancellation"][0]["token_expiry"] == expiry
+    resp = client.get(f"/cancel-reservation/BK-TEST1?token={token}")
+    assert resp.status_code == 200
+    assert "Confirm cancellation" in resp.get_data(as_text=True)
+    assert store["cancellation"][0]["token_expiry"] == expiry
+    post = client.post("/cancel-reservation/BK-TEST1", data={"token": token})
+    assert post.status_code == 200
+    assert store["bookings"][0]["booking_status"] == "cancelled"
+    assert store["cancellation"][0]["token_expiry"] == expiry

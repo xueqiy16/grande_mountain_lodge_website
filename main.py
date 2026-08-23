@@ -19,6 +19,10 @@ from confirmation import (
     send_confirmation_email,
     validate_guest_payload,
 )
+from cancellation_capability import (
+    configured_cancellation_token_secret,
+    create_placeholder_hash,
+)
 from payment_session import (
     BookingRpcContractError,
     generate_payment_session_token,
@@ -1097,6 +1101,16 @@ def handle_booking():
             "error": "Online booking is temporarily unavailable.",
         }), 503
 
+    cancel_secret = None
+    if pending_rpc:
+        cancel_secret = configured_cancellation_token_secret()
+        if cancel_secret is None:
+            logger.error("cancellation capability secret is missing or too short")
+            return jsonify({
+                "success": False,
+                "error": "Online booking is temporarily unavailable.",
+            }), 503
+
     ok, err = _supabase_required()
     if not ok:
         return jsonify({"success": False, "error": err}), 503
@@ -1129,9 +1143,16 @@ def handle_booking():
 
     # High-entropy confirmation access token (never logged, never an internal ID).
     confirmation_token = secrets.token_urlsafe(32)
-    # Separate high-entropy cancellation token; only the SHA-256 hash is stored.
-    cancellation_token = secrets.token_urlsafe(32)
-    cancellation_token_hash = _hash_cancellation_token(cancellation_token)
+    # live_v6: random token stays in this request for the email link.
+    # pending_v7: store a re-derivable placeholder hash only. The raw
+    # token is discarded; email later replaces this hash with the
+    # reservation_id HMAC capability.
+    cancellation_token = None
+    if pending_rpc:
+        cancellation_token_hash = create_placeholder_hash(cancel_secret, booking_ref)
+    else:
+        cancellation_token = secrets.token_urlsafe(32)
+        cancellation_token_hash = _hash_cancellation_token(cancellation_token)
 
     payment_session_token = None
     payment_session_token_hash = None
