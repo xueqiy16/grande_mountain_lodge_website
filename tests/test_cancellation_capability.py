@@ -122,7 +122,6 @@ def test_does_not_reuse_other_secrets(monkeypatch):
     monkeypatch.setenv("FLASK_SECRET_KEY", "f" * 32)
     monkeypatch.setenv("MONERIS_CLIENT_SECRET", "m" * 32)
     monkeypatch.setenv("SUPABASE_SECRET_KEY", "b" * 32)
-    monkeypatch.setenv("PAYMENT_QA_BYPASS_SECRET", "q" * 32)
     monkeypatch.setenv("PAYMENT_EXPIRY_CRON_SECRET", "c" * 32)
     monkeypatch.setenv("PAYMENT_RECONCILIATION_ADMIN_SECRET", "a" * 32)
     assert configured_cancellation_token_secret() is None

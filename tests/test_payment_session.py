@@ -477,61 +477,7 @@ def test_persist_failure_logs_omit_internal_ids(monkeypatch, caplog):
     assert GUEST["email"] not in caplog.text
 
 
-def test_safe_postgrest_fields_are_allowlisted_only():
-    exc = APIError(
-        {
-            "code": "PGRST202",
-            "message": "Could not find the function public.create_public_booking",
-            "details": "Searched for the function with parameters p_session_token_hash",
-            "hint": "Perhaps you meant to call the 6-argument overload",
-            "email": GUEST["email"],
-            "payment_session_token": RAW_TOKEN,
-            "session_token_hash": SESSION_HASH,
-            "confirmation_token": CONFIRMATION_TOKEN,
-            "cancellation_token": "cancel-token-must-not-leak",
-            "dataKey": DATA_KEY,
-            "paymentMethodId": MONERIS_PM,
-            "issuerId": MONERIS_ISSUER,
-            "canonical_booking_id": CANONICAL,
-            "guest": dict(GUEST),
-        }
-    )
-    fields = main._safe_postgrest_error_fields(exc)
-    assert set(fields) == {"code", "message", "details", "hint"}
-    assert fields["code"] == "PGRST202"
-    assert "create_public_booking" in fields["message"]
-    assert "p_session_token_hash" in fields["details"]
-    assert "6-argument" in fields["hint"]
-    blob = json.dumps(fields)
-    _assert_no_sentinels(blob)
-    assert GUEST["email"] not in blob
-    assert RAW_TOKEN not in blob
-    assert CONFIRMATION_TOKEN not in blob
-
-
-def test_safe_postgrest_fields_skip_non_text_and_do_not_use_str_exc():
-    class Weird:
-        code = {"nested": RAW_TOKEN}
-        message = ["payload", GUEST]
-        details = {"dataKey": DATA_KEY}
-        hint = True
-
-        def __str__(self):
-            return (
-                f"{GUEST['email']} {RAW_TOKEN} {SESSION_HASH} "
-                f"{CONFIRMATION_TOKEN} {DATA_KEY}"
-            )
-
-    fields = main._safe_postgrest_error_fields(Weird())
-    assert fields == {
-        "code": None,
-        "message": None,
-        "details": None,
-        "hint": None,
-    }
-
-
-def test_persist_apierror_logs_safe_postgrest_metadata(monkeypatch, caplog):
+def test_persist_apierror_logs_exception_type_only(monkeypatch, caplog):
     monkeypatch.setenv("CREATE_PUBLIC_BOOKING_CONTRACT", "pending_v7")
     digest = hash_payment_session_token(generate_payment_session_token())
     exc = APIError(
@@ -588,10 +534,10 @@ def test_persist_apierror_logs_safe_postgrest_metadata(monkeypatch, caplog):
     assert out["error"] == "Could not store your booking. Please try again."
     text = caplog.text
     assert "type=APIError" in text
-    assert "code=PGRST202" in text
-    assert "message=Could not find the function public.create_public_booking" in text
-    assert "p_session_token_hash" in text
-    assert "schema cache" in text
+    assert "code=PGRST202" not in text
+    assert "Could not find the function public.create_public_booking" not in text
+    assert "p_session_token_hash" not in text
+    assert "schema cache" not in text
     assert GUEST["email"] not in text
     assert GUEST["phone"] not in text
     assert GUEST["first_name"] not in text
@@ -647,8 +593,9 @@ def test_confirm_booking_apierror_browser_stays_generic(
     assert "does not exist" not in raw
     assert GUEST["email"] not in raw
     _assert_no_sentinels(body)
-    assert "code=42883" in caplog.text
-    assert "function public.create_public_booking does not exist" in caplog.text
+    assert "type=APIError" in caplog.text
+    assert "code=42883" not in caplog.text
+    assert "function public.create_public_booking does not exist" not in caplog.text
     assert GUEST["email"] not in caplog.text
     assert DATA_KEY not in caplog.text
 

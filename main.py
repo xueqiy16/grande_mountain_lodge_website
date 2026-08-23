@@ -59,12 +59,6 @@ from payment_reconciliation import (
     release_held_payment_confirmed_failure,
     require_pending_v7_for_reconciliation,
 )
-from payment_qa_bypass import (
-    QA_AUTH_PATH,
-    authorized as qa_bypass_authorized,
-    handle_qa_auth_request,
-)
-
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -99,8 +93,6 @@ app = Flask(__name__)
 
 # Temporary pause of the direct booking funnel. Set to False to restore
 # /booking, /booker_contact, /final_details, and booking submission.
-# Do not flip this flag for the one-off sandbox QA booking; that uses the
-# short-lived PAYMENT_QA_BYPASS_SECRET cookie instead.
 DIRECT_BOOKINGS_PAUSED = True
 PAUSED_BOOKING_ERROR = (
     "Direct online bookings are temporarily disabled for maintenance. "
@@ -109,14 +101,8 @@ PAUSED_BOOKING_ERROR = (
 
 
 def _booking_funnel_blocked():
-    """Pause still applies unless a valid QA booking cookie is present.
-
-    DIRECT_BOOKINGS_PAUSED is never cleared here. QA auth does not skip
-    payment, admin checks, or the pending_v7 contract.
-    """
-    if not DIRECT_BOOKINGS_PAUSED:
-        return False
-    return not qa_bypass_authorized(request)
+    """Booking funnel is blocked whenever the pause flag is set."""
+    return DIRECT_BOOKINGS_PAUSED
 
 
 # create_public_booking contract. live_v6 is the current production 6-arg
@@ -926,50 +912,6 @@ def _generate_booking_reference():
     raise RuntimeError("Could not generate a unique booking reference.")
 
 
-# TEMPORARY create_public_booking diagnostics. Log only PostgREST's four
-# metadata attributes (code/SQLSTATE, message, details, hint). Never log
-# str(exc), exc.json(), _raw_error, RPC args, tokens, or guest PII.
-_SAFE_POSTGREST_ERROR_ATTRS = ("code", "message", "details", "hint")
-_SAFE_POSTGREST_ERROR_FIELD_MAX = 800
-
-
-def _safe_postgrest_error_fields(exc):
-    """Return allowlisted PostgREST fields only. Skip non-text values."""
-    out = {}
-    for name in _SAFE_POSTGREST_ERROR_ATTRS:
-        out[name] = _safe_postgrest_error_text(getattr(exc, name, None))
-    return out
-
-
-def _safe_postgrest_error_text(value):
-    if value is None or isinstance(value, bool):
-        return None
-    if isinstance(value, int) and not isinstance(value, bool):
-        value = str(value)
-    if not isinstance(value, str):
-        return None
-    text = value.replace("\r", " ").replace("\n", " ").strip()
-    if not text:
-        return None
-    if len(text) > _SAFE_POSTGREST_ERROR_FIELD_MAX:
-        return text[:_SAFE_POSTGREST_ERROR_FIELD_MAX]
-    return text
-
-
-def _log_create_public_booking_rpc_failure(exc):
-    """TEMPORARY: type name plus PostgREST metadata. Not str(exc)."""
-    fields = _safe_postgrest_error_fields(exc)
-    logger.error(
-        "create_public_booking RPC failed: type=%s code=%s message=%s "
-        "details=%s hint=%s",
-        type(exc).__name__,
-        fields["code"],
-        fields["message"],
-        fields["details"],
-        fields["hint"],
-    )
-
-
 def _persist_booking(check_in, check_out, result, rooms_req, guest,
                      special_requests, booking_ref, confirmation_token,
                      idempotency_key, cancellation_token_hash,
@@ -1052,8 +994,10 @@ def _persist_booking(check_in, check_out, result, rooms_req, guest,
         ).execute()
     except Exception as exc:  # noqa: BLE001
         # Identifier mapping still uses str(exc) locally and is not logged.
-        # Diagnostic logs use allowlisted PostgREST fields only.
-        _log_create_public_booking_rpc_failure(exc)
+        logger.error(
+            "create_public_booking RPC failed: type=%s",
+            type(exc).__name__,
+        )
         message = str(exc)
         if "room_unavailable" in message:
             return {"ok": False,
@@ -1370,18 +1314,6 @@ def handle_complete_payment():
     except PaymentCompletionError as exc:
         return jsonify(payment_completion_error_body(exc)), exc.status
     return jsonify(body), 200
-
-
-@app.route(QA_AUTH_PATH, methods=["GET", "POST"])
-@limiter.limit("5 per minute")
-def payment_qa_auth():
-    """TEMPORARY unlisted QA login. Remove after the sandbox booking test.
-
-    GET is a native password form (no secret in HTML/JS). POST in the body
-    sets an HttpOnly cookie. Query strings are ignored. Does not unpause
-    public traffic and does not skip payment.
-    """
-    return handle_qa_auth_request()
 
 
 @app.route("/api/internal/expire-payment-sessions", methods=["POST"])
