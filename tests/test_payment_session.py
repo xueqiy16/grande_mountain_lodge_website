@@ -890,7 +890,7 @@ def test_complete_payment_template_has_no_internal_ids(client, unpaused, monkeyp
     resp = client.get("/complete-payment")
     assert resp.status_code == 200
     html = resp.get_data(as_text=True)
-    assert "Complete your payment" in html
+    assert "Card required to secure your reservation" in html
     assert "var paymentEnabled = true" in html
     for ident in FORBIDDEN_TEMPLATE_IDENTIFIERS:
         assert ident not in html

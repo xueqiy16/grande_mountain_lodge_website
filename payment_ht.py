@@ -21,11 +21,22 @@ from payment_api.validation import (
     TEMPORARY_TOKEN_MIN_LENGTH,
 )
 
-# Same required iframe CSS/query as the verified QA harness.
-IFRAME_CSS_BODY = "background:#ffffff;margin:0;padding:8px;color:#222222;"
+# Lodge-funnel iframe chrome. System fonts only; Google Fonts cannot load
+# inside the Moneris iframe. Do not put card data or JS here.
+IFRAME_FONT = (
+    "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif"
+)
+IFRAME_CSS_BODY = (
+    f"background:#ffffff;margin:0;padding:0;color:#1a1a1a;font-family:{IFRAME_FONT};"
+)
 IFRAME_CSS_TEXTBOX = (
-    "font-size:16px;border:1px solid #cccccc;margin:0 0 8px 0;"
-    "padding:6px;height:32px;width:220px;"
+    "box-sizing:border-box;width:100%;font-size:16px;padding:10px 12px;"
+    "border:1px solid #868686;border-radius:4px;background:#ffffff;"
+    f"color:#1a1a1a;margin:0 0 12px 0;font-family:{IFRAME_FONT};"
+)
+IFRAME_CSS_INPUT_LABEL = (
+    "font-size:14px;font-weight:600;color:#333333;margin:0 0 6px 0;"
+    f"display:block;font-family:{IFRAME_FONT};"
 )
 
 _REQUIRED_HT_URLS = {
@@ -96,16 +107,22 @@ def load_hosted_tokenization_browser_config(
 
 
 def build_iframe_src(hosted_tokenization_url: str, profile_id: str) -> str:
-    """Build the Moneris iframe URL with the verified QA query parameters."""
+    """Build the Moneris iframe URL with lodge-funnel Hosted Tokenization params."""
     query = urlencode(
         {
             "id": profile_id,
             "pmmsg": "true",
             "css_body": IFRAME_CSS_BODY,
             "css_textbox": IFRAME_CSS_TEXTBOX,
+            "css_input_label": IFRAME_CSS_INPUT_LABEL,
             "enable_exp": "1",
             "enable_cvd": "1",
             "display_labels": "1",
+            "pan_label": "Card number",
+            "exp_label": "Expiry (MM/YY)",
+            "cvd_label": "CVD",
+            "enable_cc_formatting": "1",
+            "enable_exp_formatting": "1",
         },
         quote_via=quote,
     )

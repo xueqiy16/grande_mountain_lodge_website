@@ -229,6 +229,11 @@ def test_correct_post_secret_renders_iframe_only(
     assert 'id="monerisFrame"' in html
     assert PRODUCTION_HOSTED_TOKENIZATION_URL in html
     assert SANDBOX_HOSTED_TOKENIZATION_URL not in html
+    assert "width:220px" not in html
+    assert "pan_label=" in html
+    assert "display_labels=1" in html
+    assert "enable_cc_formatting=1" in html
+    assert "enable_exp_formatting=1" in html
     assert resp.headers.get("Content-Security-Policy") == (
         f"frame-src {PRODUCTION_ORIGIN}"
     )

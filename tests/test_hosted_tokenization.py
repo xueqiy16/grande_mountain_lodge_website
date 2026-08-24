@@ -155,6 +155,10 @@ def test_sandbox_renders_sandbox_ht_url_only(
     assert SANDBOX_HOSTED_TOKENIZATION_URL in html
     assert PRODUCTION_HOSTED_TOKENIZATION_URL not in html
     assert f'var htOrigin = "{SANDBOX_ORIGIN}"' in html
+    assert "Card required to secure your reservation" in html
+    assert "No charge or pre-authorization" in html
+    assert "Save card & confirm reservation" in html
+    assert 'button.textContent = "Complete payment"' not in html
     assert resp.headers.get("Content-Security-Policy") == f"frame-src {SANDBOX_ORIGIN}"
 
 
@@ -211,7 +215,7 @@ def test_no_secret_config_in_template(client, unpaused, pending_v7, sandbox_ht):
     assert "SUPABASE_SERVICE_ROLE_KEY" not in html
 
 
-def test_iframe_query_matches_verified_qa_harness():
+def test_iframe_query_uses_lodge_funnel_ht_params():
     src = build_iframe_src(SANDBOX_HOSTED_TOKENIZATION_URL, "abc&evil=1")
     parsed = urlparse(src)
     assert f"{parsed.scheme}://{parsed.netloc}{parsed.path}" == (
@@ -224,6 +228,19 @@ def test_iframe_query_matches_verified_qa_harness():
     assert query["enable_exp"] == ["1"]
     assert query["enable_cvd"] == ["1"]
     assert query["display_labels"] == ["1"]
+    assert query["pan_label"] == ["Card number"]
+    assert query["exp_label"] == ["Expiry (MM/YY)"]
+    assert query["cvd_label"] == ["CVD"]
+    assert query["enable_cc_formatting"] == ["1"]
+    assert query["enable_exp_formatting"] == ["1"]
+    css_textbox = query["css_textbox"][0]
+    assert "width:220px" not in css_textbox
+    assert "width:100%" in css_textbox
+    assert "box-sizing:border-box" in css_textbox
+    assert "css_textbox_pan" not in query
+    assert "css_textbox_exp" not in query
+    assert "css_textbox_cvd" not in query
+    assert "css_input_label" in query
 
 
 def test_load_config_does_not_rewrite_mismatch():
@@ -269,6 +286,19 @@ def test_template_security_invariants():
     assert "setStatus(payload.dataKey)" not in html
     assert "<input" not in html.lower()
     assert "eval(" not in combined
+    assert "Card required to secure your reservation" in html
+    assert "No charge or pre-authorization" in html
+    assert "Save card & confirm reservation" in html
+    assert 'button.textContent = "Complete payment"' not in html
+    assert 'button.textContent = "Pay now"' not in html
+    assert 'button.textContent = "Submit payment"' not in html
+    assert 'postMessage("tokenize", htOrigin)' in html
+    assert "payment_session_token: token" in html
+    assert "dataKey: dataKey" in html
+
+
+def test_direct_bookings_remain_paused():
+    assert main.DIRECT_BOOKINGS_PAUSED is True
 
 
 def test_paused_complete_payment_does_not_render_ht():
