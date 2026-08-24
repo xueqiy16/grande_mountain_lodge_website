@@ -159,11 +159,12 @@ def require_production_api_and_ht_config() -> None:
     try:
         from payment_api.config import load_config
         from payment_api.errors import PaymentConfigError
+        from payment_completion import _payment_api_environ
     except ImportError:
         logger.error("temporary prod card-validation test config import failed")
         raise ProdValidationTestError(SAFE_UNAVAILABLE, status=503) from None
     try:
-        config = load_config()
+        config = load_config(_payment_api_environ())
     except PaymentConfigError:
         logger.error("temporary prod card-validation test payment_api config invalid")
         raise ProdValidationTestError(SAFE_UNAVAILABLE, status=503) from None

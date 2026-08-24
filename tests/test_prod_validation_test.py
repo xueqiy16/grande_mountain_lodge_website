@@ -30,6 +30,7 @@ from payment_prod_validation_test import (
     START_PATH,
     mint_capability,
     parse_capability,
+    require_production_api_and_ht_config,
     select_qa_stay,
 )
 from payment_session import hash_payment_session_token
@@ -46,6 +47,7 @@ RECON_SECRET = "recon-admin-secret-value-32chars-aa"
 CRON_SECRET = "expiry-cron-secret-value-32chars-bb"
 CANCEL_SECRET = "cancellation-token-secret-32ch-cc"
 QA_EMAIL = "gml-qa-validation@example.test"
+WEBSITE_SUPABASE_SECRET = "UNIQUE_WEBSITE_SUPABASE_SECRET_KEY_XYZ"
 RAW_TOKEN = "B" * 43
 OTHER_TOKEN = "C" * 43
 DATA_KEY = "K" * 26
@@ -194,6 +196,7 @@ def _assert_no_sensitive(text, extra=()):
         DATA_KEY,
         QA_EMAIL,
         BOOKING_REF,
+        WEBSITE_SUPABASE_SECRET,
     ) + tuple(extra):
         assert sentinel not in blob, f"leaked {sentinel!r}"
 
@@ -459,6 +462,59 @@ def test_no_available_room_fails_safely(client, start_stack, monkeypatch):
     resp = client.post(START_PATH, data={"secret": TEST_SECRET})
     assert resp.status_code == 503
     assert start_stack.calls == []
+
+
+def test_preflight_reuses_payment_completion_environ_adapter():
+    src = MODULE_PY.read_text(encoding="utf-8")
+    assert "from payment_completion import _payment_api_environ" in src
+    assert "load_config(_payment_api_environ())" in src
+    assert "load_config()" not in src.replace("load_config(_payment_api_environ())", "")
+
+
+def test_preflight_aliases_website_supabase_secret_key(
+    client, start_stack, monkeypatch, caplog
+):
+    assert main.DIRECT_BOOKINGS_PAUSED is True
+    monkeypatch.delenv("SUPABASE_SERVICE_ROLE_KEY", raising=False)
+    monkeypatch.delenv("SUPABASE_KEY", raising=False)
+    monkeypatch.setenv("SUPABASE_SECRET_KEY", WEBSITE_SUPABASE_SECRET)
+    import payment_completion
+
+    effective = payment_completion._payment_api_environ()
+    assert "SUPABASE_SECRET_KEY" not in effective
+    assert effective.get("SUPABASE_SERVICE_ROLE_KEY") == WEBSITE_SUPABASE_SECRET
+    with caplog.at_level(logging.DEBUG):
+        require_production_api_and_ht_config()
+        resp = client.post(START_PATH, data={"secret": TEST_SECRET})
+    assert resp.status_code == 200
+    assert len(start_stack.calls) == 1
+    _assert_no_sensitive(caplog.text)
+    _assert_no_sensitive(resp.get_data(as_text=True))
+    assert "Production card-validation test is unavailable." not in resp.get_data(
+        as_text=True
+    )
+
+
+def test_preflight_fails_closed_without_supabase_server_credential(
+    client, start_stack, monkeypatch, caplog
+):
+    assert main.DIRECT_BOOKINGS_PAUSED is True
+    monkeypatch.delenv("SUPABASE_SERVICE_ROLE_KEY", raising=False)
+    monkeypatch.delenv("SUPABASE_SECRET_KEY", raising=False)
+    monkeypatch.delenv("SUPABASE_KEY", raising=False)
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(prod_test.ProdValidationTestError) as ctx:
+            require_production_api_and_ht_config()
+        resp = client.post(START_PATH, data={"secret": TEST_SECRET})
+    assert ctx.value.status == 503
+    assert str(ctx.value) == "Production card-validation test is unavailable."
+    assert WEBSITE_SUPABASE_SECRET not in str(ctx.value)
+    assert resp.status_code == 503
+    assert start_stack.calls == []
+    _assert_no_sensitive(caplog.text)
+    _assert_no_sensitive(resp.get_data(as_text=True))
+    assert "payment_api config invalid" in caplog.text
+    assert WEBSITE_SUPABASE_SECRET not in caplog.text
 
 
 # ---------------------------------------------------------------------------
