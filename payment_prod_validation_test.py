@@ -79,6 +79,32 @@ QA_COUNTRY = "Canada"
 SAFE_UNAVAILABLE = "Production card-validation test is unavailable."
 SAFE_UNAUTHORIZED = "Unauthorized."
 
+# TEMPORARY server-only persist categories. The public /confirm-booking
+# route must never copy persist_diag into a browser response.
+PERSIST_ASSIGN_FAILED = "PERSIST_ASSIGN_FAILED"
+PERSIST_ROOM_UNAVAILABLE = "PERSIST_ROOM_UNAVAILABLE"
+PERSIST_GUEST_EMAIL_CONFLICT = "PERSIST_GUEST_EMAIL_CONFLICT"
+PERSIST_RESERVATION_EXPIRED = "PERSIST_RESERVATION_EXPIRED"
+PERSIST_STALE_PROCESSING = "PERSIST_STALE_PROCESSING"
+PERSIST_STATE_INCONSISTENT = "PERSIST_STATE_INCONSISTENT"
+PERSIST_RPC_GENERIC = "PERSIST_RPC_GENERIC"
+PERSIST_NO_BOOKING_REFERENCE = "PERSIST_NO_BOOKING_REFERENCE"
+PERSIST_OTHER = "PERSIST_OTHER"
+
+SAFE_PERSIST_DIAG_CODES = frozenset(
+    {
+        PERSIST_ASSIGN_FAILED,
+        PERSIST_ROOM_UNAVAILABLE,
+        PERSIST_GUEST_EMAIL_CONFLICT,
+        PERSIST_RESERVATION_EXPIRED,
+        PERSIST_STALE_PROCESSING,
+        PERSIST_STATE_INCONSISTENT,
+        PERSIST_RPC_GENERIC,
+        PERSIST_NO_BOOKING_REFERENCE,
+        PERSIST_OTHER,
+    }
+)
+
 _EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 
@@ -127,6 +153,28 @@ def configured_test_email() -> Optional[str]:
     if not _EMAIL_RE.match(email):
         return None
     return email
+
+
+def server_persist_failure(error: str, diag: str) -> dict:
+    """Build a server-only persist failure. persist_diag is not public."""
+    if not isinstance(diag, str) or diag not in SAFE_PERSIST_DIAG_CODES:
+        diag = PERSIST_OTHER
+    return {"ok": False, "error": error, "persist_diag": diag}
+
+
+def safe_persist_diag_code(persisted) -> str:
+    """Map a persist result to one allowlisted code. Never copies error text."""
+    if not isinstance(persisted, dict):
+        return PERSIST_OTHER
+    raw = persisted.get("persist_diag")
+    if isinstance(raw, str) and raw in SAFE_PERSIST_DIAG_CODES:
+        return raw
+    return PERSIST_OTHER
+
+
+def persist_failure_user_message(persisted) -> str:
+    """TEMPORARY operator 503. Uses only an allowlisted persist category."""
+    return f"{SAFE_UNAVAILABLE} [{safe_persist_diag_code(persisted)}]"
 
 
 def authorize_form_secret(provided) -> None:

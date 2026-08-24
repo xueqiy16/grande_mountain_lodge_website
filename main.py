@@ -61,6 +61,15 @@ from payment_reconciliation import (
 )
 from payment_prod_validation_test import (
     COOKIE_NAME as PROD_VALIDATION_TEST_COOKIE,
+    PERSIST_ASSIGN_FAILED,
+    PERSIST_GUEST_EMAIL_CONFLICT,
+    PERSIST_NO_BOOKING_REFERENCE,
+    PERSIST_OTHER,
+    PERSIST_RESERVATION_EXPIRED,
+    PERSIST_ROOM_UNAVAILABLE,
+    PERSIST_RPC_GENERIC,
+    PERSIST_STALE_PROCESSING,
+    PERSIST_STATE_INCONSISTENT,
     ProdValidationTestError,
     START_PATH as PROD_VALIDATION_TEST_PATH,
     QA_SPECIAL_REQUESTS,
@@ -71,9 +80,12 @@ from payment_prod_validation_test import (
     clear_capability_cookie,
     configured_test_email,
     mint_capability,
+    persist_failure_user_message,
     qa_guest_payload,
     require_production_api_and_ht_config,
+    safe_persist_diag_code,
     select_qa_stay,
+    server_persist_failure,
 )
 logger = logging.getLogger(__name__)
 
@@ -955,7 +967,7 @@ def _persist_booking(check_in, check_out, result, rooms_req, guest,
 
     assignments, assign_err = _assign_physical_rooms(check_in, check_out, result)
     if assign_err:
-        return {"ok": False, "error": assign_err}
+        return server_persist_failure(assign_err, PERSIST_ASSIGN_FAILED)
 
     booking_rows = []
     for idx, assignment in enumerate(assignments):
@@ -990,10 +1002,16 @@ def _persist_booking(check_in, check_out, result, rooms_req, guest,
         pending_rpc = uses_pending_payment_rpc()
     except BookingRpcContractError:
         logger.error("invalid CREATE_PUBLIC_BOOKING_CONTRACT")
-        return {"ok": False, "error": "Online booking is temporarily unavailable."}
+        return server_persist_failure(
+            "Online booking is temporarily unavailable.",
+            PERSIST_OTHER,
+        )
     if pending_rpc:
         if not is_session_token_hash(session_token_hash):
-            return {"ok": False, "error": "Could not store your booking. Please try again."}
+            return server_persist_failure(
+                "Could not store your booking. Please try again.",
+                PERSIST_OTHER,
+            )
 
     try:
         res = supabase.rpc(
@@ -1016,30 +1034,46 @@ def _persist_booking(check_in, check_out, result, rooms_req, guest,
         )
         message = str(exc)
         if "room_unavailable" in message:
-            return {"ok": False,
-                    "error": "One or more requested rooms are no longer available for these dates."}
+            return server_persist_failure(
+                "One or more requested rooms are no longer available for these dates.",
+                PERSIST_ROOM_UNAVAILABLE,
+            )
         if "guest_email_conflict" in message:
             logger.error(
                 "guests.email appears to be UNIQUE — insert-only guest creation "
                 "is blocked. Booking refused to avoid overwriting guest PII."
             )
-            return {"ok": False,
-                    "error": "We couldn't complete your booking online. Please call the lodge to reserve."}
+            return server_persist_failure(
+                "We couldn't complete your booking online. Please call the lodge to reserve.",
+                PERSIST_GUEST_EMAIL_CONFLICT,
+            )
         if "reservation_expired" in message:
-            return {"ok": False,
-                    "error": "This reservation hold has expired. Please start a new booking."}
+            return server_persist_failure(
+                "This reservation hold has expired. Please start a new booking.",
+                PERSIST_RESERVATION_EXPIRED,
+            )
         if "payment_session_stale_processing" in message:
-            return {"ok": False,
-                    "error": "Payment is still being processed. Please wait a moment and try again."}
+            return server_persist_failure(
+                "Payment is still being processed. Please wait a moment and try again.",
+                PERSIST_STALE_PROCESSING,
+            )
         if "reservation_state_inconsistent" in message:
-            return {"ok": False,
-                    "error": "We couldn't complete your booking online. Please call the lodge to reserve."}
-        return {"ok": False, "error": "Could not store your booking. Please try again."}
+            return server_persist_failure(
+                "We couldn't complete your booking online. Please call the lodge to reserve.",
+                PERSIST_STATE_INCONSISTENT,
+            )
+        return server_persist_failure(
+            "Could not store your booking. Please try again.",
+            PERSIST_RPC_GENERIC,
+        )
 
     data = _rpc_payload(res)
     if not data.get("booking_reference"):
         logger.error("create_public_booking returned no booking_reference")
-        return {"ok": False, "error": "Could not store your booking. Please try again."}
+        return server_persist_failure(
+            "Could not store your booking. Please try again.",
+            PERSIST_NO_BOOKING_REFERENCE,
+        )
 
     return server_create_booking_result(data)
 
@@ -1445,9 +1479,10 @@ def prod_card_validation_test():
             confirmation_token, uuid.uuid4().hex, cancellation_token_hash,
             session_token_hash=payment_session_token_hash)
         if not persisted.get("ok"):
-            logger.error("temporary prod card-validation test persist failed")
+            code = safe_persist_diag_code(persisted)
+            logger.error("temporary prod card-validation test persist failed: %s", code)
             raise ProdValidationTestError(
-                "Production card-validation test is unavailable.",
+                persist_failure_user_message(persisted),
                 status=503,
             )
         capability = mint_capability(payment_session_token_hash)

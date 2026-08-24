@@ -434,6 +434,7 @@ def test_unknown_contract_persist_does_not_rpc(monkeypatch):
     )
     assert out["ok"] is False
     assert fake.rpc_calls == []
+    assert out["persist_diag"] == "PERSIST_OTHER"
 
 
 def test_persist_failure_logs_omit_internal_ids(monkeypatch, caplog):
@@ -469,6 +470,7 @@ def test_persist_failure_logs_omit_internal_ids(monkeypatch, caplog):
         )
     assert out["ok"] is False
     assert out["error"] == "Could not store your booking. Please try again."
+    assert out["persist_diag"] == "PERSIST_RPC_GENERIC"
     assert "type=RuntimeError" in caplog.text
     _assert_no_sentinels(caplog.text)
     assert "canonical_booking_id" not in caplog.text
@@ -532,6 +534,7 @@ def test_persist_apierror_logs_exception_type_only(monkeypatch, caplog):
         )
     assert out["ok"] is False
     assert out["error"] == "Could not store your booking. Please try again."
+    assert out["persist_diag"] == "PERSIST_RPC_GENERIC"
     text = caplog.text
     assert "type=APIError" in text
     assert "code=PGRST202" not in text
@@ -588,10 +591,12 @@ def test_confirm_booking_apierror_browser_stays_generic(
     body = resp.get_json()
     assert body["success"] is False
     assert body["error"] == "Could not store your booking. Please try again."
+    assert "persist_diag" not in body
     raw = resp.get_data(as_text=True)
     assert "42883" not in raw
     assert "does not exist" not in raw
     assert GUEST["email"] not in raw
+    assert "PERSIST_" not in raw
     _assert_no_sentinels(body)
     assert "type=APIError" in caplog.text
     assert "code=42883" not in caplog.text

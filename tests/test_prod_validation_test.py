@@ -27,11 +27,16 @@ from payment_completion import PaymentCompletionError
 from payment_prod_validation_test import (
     COOKIE_NAME,
     QA_SPECIAL_REQUESTS,
+    SAFE_PERSIST_DIAG_CODES,
+    SAFE_UNAVAILABLE,
     START_PATH,
     mint_capability,
     parse_capability,
+    persist_failure_user_message,
     require_production_api_and_ht_config,
+    safe_persist_diag_code,
     select_qa_stay,
+    server_persist_failure,
 )
 from payment_session import hash_payment_session_token
 
@@ -123,14 +128,19 @@ def _unavailable_itinerary(_check_in, _check_out, _rooms_req):
 
 
 class PersistBox:
-    def __init__(self, ok=True):
+    def __init__(self, ok=True, persist_diag=None, error="Could not store your booking."):
         self.calls = []
         self.ok = ok
+        self.persist_diag = persist_diag
+        self.error = error
 
     def __call__(self, *args, **kwargs):
         self.calls.append((args, kwargs))
         if not self.ok:
-            return {"ok": False, "error": "Could not store your booking."}
+            out = {"ok": False, "error": self.error}
+            if self.persist_diag is not None:
+                out["persist_diag"] = self.persist_diag
+            return out
         return {
             "ok": True,
             "booking_reference": BOOKING_REF,
@@ -323,6 +333,14 @@ def test_no_charge_surface_in_temporary_path():
     assert re.search(r'["\']/payments["\']', temporary_route) is None
     assert "automaticCapture" not in temporary_route
     assert "pre_auth" not in temporary_route
+    assert "persist_failure_user_message" in temporary_route
+    handle_booking = main_src[
+        main_src.index("def handle_booking():") : main_src.index(
+            "def _legacy_form_booking():"
+        )
+    ]
+    assert "persist_failure_user_message" not in handle_booking
+    assert "persist_diag" not in handle_booking
     complete = main_src[
         main_src.index("def handle_complete_payment():") : main_src.index(
             "def prod_card_validation_test():"
@@ -385,8 +403,10 @@ def test_short_test_secret_is_503(client, start_stack, monkeypatch):
 def test_wrong_secret_is_401(client, start_stack):
     resp = client.post(START_PATH, data={"secret": "definitely-not-the-test-secret-value"})
     assert resp.status_code == 401
+    body = resp.get_data(as_text=True)
     assert start_stack.calls == []
-    assert TEST_SECRET not in resp.get_data(as_text=True)
+    assert TEST_SECRET not in body
+    assert "PERSIST_" not in body
 
 
 def test_query_string_secret_cannot_authorize(client, start_stack):
@@ -529,7 +549,10 @@ def test_get_booking_remains_blocked(client):
 def test_post_confirm_booking_remains_blocked(client):
     resp = client.post("/confirm-booking", json={})
     assert resp.status_code == 403
-    assert "temporarily disabled" in resp.get_json()["error"]
+    body = resp.get_json()
+    assert "temporarily disabled" in body["error"]
+    assert "persist_diag" not in body
+    assert "PERSIST_" not in resp.get_data(as_text=True)
 
 
 def test_ordinary_get_complete_payment_remains_blocked(client):
@@ -863,3 +886,275 @@ def test_paused_api_without_capability_does_not_call_moneris(client, monkeypatch
     assert resp.status_code == 403
     complete.assert_not_called()
     parse.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# TEMPORARY persist diagnostic (operator start route only)
+# ---------------------------------------------------------------------------
+class _PersistRpcExec:
+    def __init__(self, owner):
+        self.owner = owner
+
+    def execute(self):
+        if self.owner.exc:
+            raise self.owner.exc
+        return type("Res", (), {"data": self.owner.data})()
+
+
+class _PersistFakeSupabase:
+    def __init__(self, data=None, exc=None):
+        self.data = data if data is not None else {
+            "ok": True,
+            "booking_reference": BOOKING_REF,
+            "confirmation_token": "confirmation-token-must-not-leak",
+            "reused": False,
+            "token_rotated": True,
+        }
+        self.exc = exc
+        self.rpc_calls = []
+
+    def rpc(self, name, args):
+        self.rpc_calls.append((name, args))
+        return _PersistRpcExec(self)
+
+
+def _run_persist(
+    monkeypatch,
+    *,
+    assign_err=None,
+    exc=None,
+    data=None,
+    session_hash=None,
+    contract="pending_v7",
+):
+    monkeypatch.setenv("CREATE_PUBLIC_BOOKING_CONTRACT", contract)
+    fake = _PersistFakeSupabase(data=data, exc=exc)
+    monkeypatch.setattr(main, "supabase", fake)
+    if assign_err is not None:
+        monkeypatch.setattr(
+            main, "_assign_physical_rooms", lambda *a, **k: (None, assign_err)
+        )
+    else:
+        monkeypatch.setattr(
+            main,
+            "_assign_physical_rooms",
+            lambda *a, **k: (
+                [{"room_id": "room-leak-id", "line_total": 89.99, "rate": 89.99}],
+                None,
+            ),
+        )
+    digest = session_hash if session_hash is not None else hash_payment_session_token(
+        RAW_TOKEN
+    )
+    itinerary = {
+        "valid": True,
+        "nights": 1,
+        "subtotal": 89.99,
+        "gst": 4.5,
+        "atl": 5.4,
+        "grand_total": 99.89,
+        "rooms": [{"name": "Studio Double Queen Non-Smoking", "code": "STU-QQ-NS"}],
+    }
+    guest = prod_test.qa_guest_payload(QA_EMAIL)
+    out = main._persist_booking(
+        date(2026, 10, 23),
+        date(2026, 10, 24),
+        itinerary,
+        [{"name": "Studio Double Queen Non-Smoking", "adults": 1, "children": 0, "pets": 0}],
+        guest,
+        QA_SPECIAL_REQUESTS,
+        BOOKING_REF,
+        "confirmation-token-must-not-leak",
+        "idem-" + "a" * 32,
+        "c" * 64,
+        session_token_hash=digest,
+    )
+    return out, fake
+
+
+_JUICY_RPC_ERROR = (
+    f"column room_price does not exist email={QA_EMAIL} "
+    f"booking_reference={BOOKING_REF} room_id=room-leak-id "
+    f"canonical_booking_id={CANONICAL} reservation_id={RESERVATION} "
+    f"payment_session_id={PAYMENT_SESSION} session_token_hash={'ab' * 32} "
+    f"payment_session_token={RAW_TOKEN} cancellation_token_hash={'c' * 64} "
+    f"idempotency_key=idem-{'a' * 32} dataKey={DATA_KEY} "
+    "SELECT * FROM guests"
+)
+
+
+def test_server_persist_failure_rejects_unknown_diag():
+    out = server_persist_failure("Could not store your booking.", "guest_email_conflict")
+    assert out == {
+        "ok": False,
+        "error": "Could not store your booking.",
+        "persist_diag": prod_test.PERSIST_OTHER,
+    }
+    assert persist_failure_user_message(out) == (
+        f"{SAFE_UNAVAILABLE} [{prod_test.PERSIST_OTHER}]"
+    )
+
+
+def test_safe_persist_diag_ignores_error_text():
+    persisted = {
+        "ok": False,
+        "error": _JUICY_RPC_ERROR,
+        "persist_diag": "not-an-allowlisted-code",
+    }
+    assert safe_persist_diag_code(persisted) == prod_test.PERSIST_OTHER
+    message = persist_failure_user_message(persisted)
+    assert message == f"{SAFE_UNAVAILABLE} [{prod_test.PERSIST_OTHER}]"
+    _assert_no_sensitive(message, extra=("room_price", "SELECT *", "room-leak-id", RAW_TOKEN))
+
+
+@pytest.mark.parametrize(
+    "exc_text, expected",
+    [
+        ("room_unavailable", prod_test.PERSIST_ROOM_UNAVAILABLE),
+        (f"guest_email_conflict {QA_EMAIL}", prod_test.PERSIST_GUEST_EMAIL_CONFLICT),
+        ("reservation_expired", prod_test.PERSIST_RESERVATION_EXPIRED),
+        ("payment_session_stale_processing", prod_test.PERSIST_STALE_PROCESSING),
+        ("reservation_state_inconsistent", prod_test.PERSIST_STATE_INCONSISTENT),
+        (_JUICY_RPC_ERROR, prod_test.PERSIST_RPC_GENERIC),
+    ],
+)
+def test_persist_booking_maps_known_rpc_failures(monkeypatch, caplog, exc_text, expected):
+    with caplog.at_level(logging.ERROR):
+        out, fake = _run_persist(monkeypatch, exc=RuntimeError(exc_text))
+    assert out["ok"] is False
+    assert out["persist_diag"] == expected
+    assert fake.rpc_calls
+    text = persist_failure_user_message(out)
+    assert text == f"{SAFE_UNAVAILABLE} [{expected}]"
+    _assert_no_sensitive(text, extra=(RAW_TOKEN, "room_price", "SELECT *", "room-leak-id"))
+    _assert_no_sensitive(caplog.text, extra=(RAW_TOKEN, "room_price", "SELECT *"))
+    assert QA_EMAIL not in text
+    assert BOOKING_REF not in text
+    assert CANONICAL not in text
+    assert RESERVATION not in text
+    assert PAYMENT_SESSION not in text
+    assert "c" * 64 not in text
+    assert DATA_KEY not in text
+
+
+def test_persist_booking_assign_failed_diag(monkeypatch):
+    assign_err = (
+        "Room type Studio Double Queen Non-Smoking is not configured in the "
+        "database. If Supabase credentials are set, verify SUPABASE_KEY is the "
+        "service-role (secret) key from Project Settings → API, not the "
+        "publishable key."
+    )
+    out, fake = _run_persist(monkeypatch, assign_err=assign_err)
+    assert out["ok"] is False
+    assert out["persist_diag"] == prod_test.PERSIST_ASSIGN_FAILED
+    assert fake.rpc_calls == []
+    text = persist_failure_user_message(out)
+    assert text == f"{SAFE_UNAVAILABLE} [{prod_test.PERSIST_ASSIGN_FAILED}]"
+    assert "SUPABASE_KEY" not in text
+    assert "Studio Double Queen" not in text
+    assert assign_err not in text
+
+
+def test_persist_booking_missing_reference_diag(monkeypatch):
+    out, _fake = _run_persist(monkeypatch, data={"ok": True})
+    assert out["ok"] is False
+    assert out["persist_diag"] == prod_test.PERSIST_NO_BOOKING_REFERENCE
+    assert persist_failure_user_message(out) == (
+        f"{SAFE_UNAVAILABLE} [{prod_test.PERSIST_NO_BOOKING_REFERENCE}]"
+    )
+
+
+def test_persist_booking_invalid_session_hash_is_other(monkeypatch):
+    out, fake = _run_persist(monkeypatch, session_hash="not-a-session-hash")
+    assert out["ok"] is False
+    assert out["persist_diag"] == prod_test.PERSIST_OTHER
+    assert fake.rpc_calls == []
+
+
+@pytest.mark.parametrize("diag", sorted(SAFE_PERSIST_DIAG_CODES))
+def test_temp_route_returns_allowlisted_persist_code(
+    client, start_stack, monkeypatch, diag, caplog
+):
+    persist = PersistBox(ok=False, persist_diag=diag, error=_JUICY_RPC_ERROR)
+    monkeypatch.setattr(main, "_persist_booking", persist)
+    with caplog.at_level(logging.ERROR):
+        resp = client.post(START_PATH, data={"secret": TEST_SECRET})
+    assert resp.status_code == 503
+    body = resp.get_data(as_text=True)
+    assert body == f"{SAFE_UNAVAILABLE} [{diag}]"
+    assert len(persist.calls) == 1
+    _assert_no_sensitive(body, extra=(RAW_TOKEN, "room_price", "SELECT *", "room-leak-id"))
+    _assert_no_sensitive(caplog.text, extra=(RAW_TOKEN, "room_price", "SELECT *"))
+    assert "persist failed: " + diag in caplog.text
+
+
+def test_temp_route_unknown_diag_becomes_other(client, start_stack, monkeypatch):
+    persist = PersistBox(
+        ok=False,
+        persist_diag="guest_email_conflict",
+        error=_JUICY_RPC_ERROR,
+    )
+    monkeypatch.setattr(main, "_persist_booking", persist)
+    resp = client.post(START_PATH, data={"secret": TEST_SECRET})
+    assert resp.status_code == 503
+    assert resp.get_data(as_text=True) == (
+        f"{SAFE_UNAVAILABLE} [{prod_test.PERSIST_OTHER}]"
+    )
+    _assert_no_sensitive(resp.get_data(as_text=True), extra=("room_price", RAW_TOKEN))
+
+
+def test_temp_route_missing_diag_becomes_other(client, start_stack, monkeypatch):
+    persist = PersistBox(ok=False, error=_JUICY_RPC_ERROR)
+    monkeypatch.setattr(main, "_persist_booking", persist)
+    resp = client.post(START_PATH, data={"secret": TEST_SECRET})
+    assert resp.status_code == 503
+    assert resp.get_data(as_text=True) == (
+        f"{SAFE_UNAVAILABLE} [{prod_test.PERSIST_OTHER}]"
+    )
+    _assert_no_sensitive(resp.get_data(as_text=True), extra=("room_price", RAW_TOKEN))
+
+
+def test_confirm_booking_does_not_expose_persist_diag(client, monkeypatch):
+    monkeypatch.setattr(main, "DIRECT_BOOKINGS_PAUSED", False)
+    monkeypatch.setattr(main, "_supabase_required", lambda: (True, None))
+    monkeypatch.setattr(main, "_validate_itinerary", _valid_itinerary)
+    monkeypatch.setattr(main, "_generate_booking_reference", lambda: BOOKING_REF)
+    monkeypatch.setenv("CREATE_PUBLIC_BOOKING_CONTRACT", "pending_v7")
+    monkeypatch.setenv("CANCELLATION_TOKEN_SECRET", CANCEL_SECRET)
+
+    def persist(*_args, **_kwargs):
+        return {
+            "ok": False,
+            "error": "Could not store your booking. Please try again.",
+            "persist_diag": prod_test.PERSIST_RPC_GENERIC,
+        }
+
+    monkeypatch.setattr(main, "_persist_booking", persist)
+    resp = client.post(
+        "/confirm-booking",
+        json={
+            "checkin": "2026-10-23",
+            "checkout": "2026-10-24",
+            "rooms": [
+                {
+                    "name": "Studio Double Queen Non-Smoking",
+                    "adults": 1,
+                    "children": 0,
+                    "pets": 0,
+                }
+            ],
+            "guest": prod_test.qa_guest_payload(QA_EMAIL),
+            "idempotency_key": "idem-" + "a" * 32,
+        },
+    )
+    assert resp.status_code == 500
+    body = resp.get_json()
+    assert body == {
+        "success": False,
+        "error": "Could not store your booking. Please try again.",
+    }
+    raw = resp.get_data(as_text=True)
+    assert "persist_diag" not in raw
+    assert "PERSIST_RPC_GENERIC" not in raw
+    assert "PERSIST_" not in raw
+    _assert_no_sensitive(raw)
