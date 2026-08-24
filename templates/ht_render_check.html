@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hosted Tokenization production render check</title>
+    <style>
+        body { font-family: sans-serif; margin: 24px; }
+        #monerisFrame { width: 100%; height: 180px; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+    <!-- TEMPORARY iframe-only page for /internal/ht-render-check. Remove with the route. -->
+    <p>Hosted Tokenization production render check</p>
+    <iframe
+        id="monerisFrame"
+        title="Moneris Hosted Tokenization"
+        scrolling="no"
+        src="{{ ht_iframe_src }}"
+    ></iframe>
+</body>
+</html>
