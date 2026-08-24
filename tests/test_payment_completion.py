@@ -77,6 +77,10 @@ class CredentialRegistrationError(Exception):
     pass
 
 
+class CredentialReconciliationRequiredError(CredentialRegistrationError):
+    pass
+
+
 class MonerisValidationError(Exception):
     CONFIRMED_DECLINE = "CONFIRMED_DECLINE"
     PROCESSOR_UNAVAILABLE = "PROCESSOR_UNAVAILABLE"
@@ -809,7 +813,9 @@ def test_persistence_error_does_not_cancel(pending_v7):
     with pytest.raises(PaymentCompletionError) as ctx:
         _run_complete(fake, register, [])
     assert ctx.value.status == 502
+    assert ctx.value.retry_payment is False
     assert fake.cancelled is False
+    assert fake.session_status == "PROCESSING"
 
 
 def test_processor_unavailable_does_not_infer_from_message(pending_v7):
@@ -1319,6 +1325,65 @@ def test_reconciliation_required_does_not_reopen(pending_v7):
     assert fake.session_status == "PROCESSING"
 
 
+def test_processor_unavailable_exception_is_502_not_422(pending_v7):
+    fake = FakeSupabase()
+    fake.credential_status = "RECONCILIATION_REQUIRED"
+    register = RegisterBox()
+    register.exc = CredentialReconciliationRequiredError(
+        "CONFIRMED_DECLINE in message should be ignored"
+    )
+    with pytest.raises(PaymentCompletionError) as ctx:
+        _run_complete(fake, register, [])
+    assert ctx.value.status == 502
+    assert ctx.value.retry_payment is False
+    assert "retry_payment" not in payment_completion.payment_completion_error_body(
+        ctx.value
+    )
+    assert "CONFIRMED_DECLINE" not in ctx.value.user_message
+    assert fake.session_status == "PROCESSING"
+    assert not any(
+        item[1] == "reopen_payment_session_after_failed_registration"
+        for item in fake.order
+    )
+
+
+def test_invalid_response_held_exception_is_502(pending_v7):
+    fake = FakeSupabase()
+    fake.credential_status = "RECONCILIATION_REQUIRED"
+    register = RegisterBox()
+    register.exc = CredentialReconciliationRequiredError(
+        "Payment processor request failed"
+    )
+    with pytest.raises(PaymentCompletionError) as ctx:
+        _run_complete(fake, register, [])
+    assert ctx.value.status == 502
+    assert ctx.value.retry_payment is False
+    assert fake.session_status == "PROCESSING"
+
+
+def test_http_held_reconciliation_is_502(
+    client, unpaused, pending_v7, completion_stack
+):
+    fake, register, _emails = completion_stack
+    fake.credential_status = "RECONCILIATION_REQUIRED"
+    register.exc = CredentialReconciliationRequiredError(
+        "Payment processor request failed"
+    )
+    resp = client.post("/api/complete-payment", json=_valid_body())
+    assert resp.status_code == 502
+    body = resp.get_json()
+    assert body["success"] is False
+    assert "retry_payment" not in body
+    dumped = json.dumps(body)
+    assert DATA_KEY not in dumped
+    assert MONERIS_PM not in dumped
+    assert MONERIS_ISSUER not in dumped
+    assert ATTEMPT_A not in dumped
+    assert RAW_TOKEN not in dumped
+    assert leaked_internal_keys(body) == set()
+    assert fake.session_status == "PROCESSING"
+
+
 def test_pending_credential_cannot_reopen(pending_v7):
     fake = FakeSupabase()
     fake.credential_status = "PENDING"
@@ -1326,6 +1391,7 @@ def test_pending_credential_cannot_reopen(pending_v7):
     register.exc = CredentialPersistenceError("persistence")
     with pytest.raises(PaymentCompletionError) as ctx:
         _run_complete(fake, register, [])
+    assert ctx.value.status == 502
     assert ctx.value.retry_payment is False
     assert fake.session_status == "PROCESSING"
 

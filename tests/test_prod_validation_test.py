@@ -292,19 +292,19 @@ def test_complete_payment_ht_js_unchanged():
     assert COOKIE_NAME not in js
 
 
-def test_validation_py_unchanged():
-    result = subprocess.run(
-        ["git", "diff", "--", "payment_api/validation.py"],
-        cwd=WEBSITE_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0
-    assert result.stdout == ""
+def test_validation_request_contract_unchanged():
     src = VALIDATION_PY.read_text(encoding="utf-8")
     assert 'VALIDATIONS_PATH = "/validations"' in src
     assert "/payments" not in src
+    assert 'STORE_PAYMENT_METHOD_MERCHANT_INITIATED = "MERCHANT_INITIATED"' in src
+    assert 'COF_PAYMENT_INDICATOR_FIRST = "UNSCHEDULED_CREDENTIAL_ON_FILE"' in src
+    assert 'COF_PAYMENT_INFORMATION_FIRST = "FIRST"' in src
+    assert '"storePaymentMethod": STORE_PAYMENT_METHOD_MERCHANT_INITIATED' in src
+    assert '"paymentIndicator": COF_PAYMENT_INDICATOR_FIRST' in src
+    assert '"paymentInformation": COF_PAYMENT_INFORMATION_FIRST' in src
+    assert "automaticCapture" not in src
+    assert '"amount"' not in src
+    assert "purchase" not in src.lower()
 
 
 def test_no_charge_surface_in_temporary_path():

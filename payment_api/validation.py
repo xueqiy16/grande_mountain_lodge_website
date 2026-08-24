@@ -164,11 +164,57 @@ def _request_validation(
         ) from None
 
     if not (200 <= response.status_code < 300):
+        _raise_non_2xx_validation_error(response)
+    return _parse_json_object(response)
+
+
+PROBLEM_JSON_DECLINED = "DECLINED_ERROR"
+PROBLEM_JSON_INVALID_REQUEST = "INVALID_REQUEST_ERROR"
+
+
+def _raise_non_2xx_validation_error(response: requests.Response) -> None:
+    """Classify a non-2xx Card Validation response. Never reads message text."""
+    status_code = response.status_code
+    message = _http_error_message(status_code)
+    if isinstance(status_code, int) and status_code >= 500:
         raise MonerisValidationError(
-            _http_error_message(response.status_code),
+            message,
             category=MonerisValidationError.PROCESSOR_UNAVAILABLE,
         )
-    return _parse_json_object(response)
+    category = _problem_json_category(response)
+    if category == PROBLEM_JSON_DECLINED:
+        raise MonerisValidationError(
+            message,
+            category=MonerisValidationError.CONFIRMED_DECLINE,
+        )
+    if category == PROBLEM_JSON_INVALID_REQUEST:
+        raise MonerisValidationError(
+            message,
+            category=MonerisValidationError.INVALID_REQUEST,
+        )
+    raise MonerisValidationError(
+        message,
+        category=MonerisValidationError.PROCESSOR_UNAVAILABLE,
+    )
+
+
+def _problem_json_category(response: requests.Response) -> Optional[str]:
+    """Return the documented problem+json category, or None if unreadable.
+
+    Does not inspect title, detail, or errorMessage. Does not require a
+    Content-Type header (mocked responses may omit it).
+    """
+    try:
+        payload = response.json()
+    except (ValueError, TypeError, AttributeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    raw = payload.get("category")
+    if not isinstance(raw, str):
+        return None
+    value = raw.strip()
+    return value or None
 
 
 def _http_error_message(status_code: int) -> str:

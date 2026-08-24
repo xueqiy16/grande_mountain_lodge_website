@@ -60,3 +60,12 @@ class CredentialPersistenceError(CredentialRegistrationError):
 
     Callers must retry with the same idempotency key.
     """
+
+
+class CredentialReconciliationRequiredError(CredentialRegistrationError):
+    """Raised after a registration is held as RECONCILIATION_REQUIRED.
+
+    The Card Validation outcome is ambiguous or persistence after success
+    did not complete. Callers must not treat this as a confirmed decline
+    and must not mint a new idempotency key.
+    """

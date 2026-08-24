@@ -43,6 +43,7 @@ from payment_api.errors import (
     CredentialConflictError,
     CredentialPersistenceError,
     CredentialRegistrationError,
+    CredentialReconciliationRequiredError,
     MonerisAuthError,
     MonerisValidationError,
 )
@@ -205,7 +206,7 @@ def _handle_validation_error(
         else ERROR_PROCESSOR_UNAVAILABLE
     )
     repo.mark_reconciliation_required(pending.credential_id, category)
-    raise CredentialRegistrationError(
+    raise CredentialReconciliationRequiredError(
         "Payment processor request failed"
     ) from None
 

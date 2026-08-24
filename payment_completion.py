@@ -268,6 +268,8 @@ def _map_registration_exception(exc: Exception) -> PaymentCompletionError:
     """Map typed registration errors. Never branch on message text."""
     if _exc_named(exc, "CredentialPersistenceError"):
         return PaymentCompletionError(SAFE_RECONCILIATION, status=502)
+    if _exc_named(exc, "CredentialReconciliationRequiredError"):
+        return PaymentCompletionError(SAFE_RECONCILIATION, status=502)
     if _exc_named(exc, "CredentialConflictError"):
         return PaymentCompletionError(SAFE_CONFLICT, status=409)
     if _exc_named(exc, "MonerisAuthError"):
@@ -576,6 +578,9 @@ def complete_pending_payment(
     except Exception as exc:  # noqa: BLE001
         logger.error("credential registration failed: %s", type(exc).__name__)
         mapped = _map_registration_exception(exc)
+        # Held/ambiguous outcomes are 5xx. Do not reopen; session stays PROCESSING.
+        if mapped.status >= 500:
+            raise mapped from None
         if _reopen_after_failed_registration(supabase, session_id, attempt_key):
             raise PaymentCompletionError(
                 SAFE_DECLINED, status=422, retry_payment=True
