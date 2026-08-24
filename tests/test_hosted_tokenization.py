@@ -158,7 +158,6 @@ def test_sandbox_renders_sandbox_ht_url_only(
     assert "Card required to secure your reservation" in html
     assert "No charge or pre-authorization" in html
     assert "Credit Card Information" in html
-    assert "Hosted Tokenization production render check" not in html
     assert "Save card & confirm reservation" in html
     assert "#ff5778" in html
     assert "#D63683" in html
@@ -293,7 +292,6 @@ def test_template_security_invariants():
     assert "Card required to secure your reservation" in html
     assert "No charge or pre-authorization" in html
     assert "Credit Card Information" in html
-    assert "Hosted Tokenization production render check" not in html
     assert "Save card & confirm reservation" in html
     assert "#ff5778" in html
     assert "#D63683" in html

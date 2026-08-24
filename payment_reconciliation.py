@@ -138,21 +138,6 @@ def authorize_reconciliation_admin(authorization_header: Optional[str]) -> None:
         raise PaymentReconciliationError(SAFE_UNAUTHORIZED, status=401)
 
 
-def authorize_reconciliation_admin_posted_secret(provided) -> None:
-    """Authorize a POST-body secret against PAYMENT_RECONCILIATION_ADMIN_SECRET.
-
-    Used only by the temporary HT render-check form. Query strings, cookies,
-    and Bearer headers are ignored by the caller.
-    """
-    expected = configured_reconciliation_admin_secret()
-    if expected is None:
-        raise PaymentReconciliationError(SAFE_UNAVAILABLE, status=503)
-    if not isinstance(provided, str) or provided == "":
-        raise PaymentReconciliationError(SAFE_UNAUTHORIZED, status=401)
-    if not _secrets_match(provided, expected):
-        raise PaymentReconciliationError(SAFE_UNAUTHORIZED, status=401)
-
-
 def require_pending_v7_for_reconciliation() -> None:
     try:
         contract = booking_rpc_contract()

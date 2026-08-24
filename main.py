@@ -53,7 +53,6 @@ from payment_expiry import (
 from payment_reconciliation import (
     PaymentReconciliationError,
     authorize_reconciliation_admin,
-    authorize_reconciliation_admin_posted_secret,
     finalize_held_payment,
     list_held_payment_registrations,
     reconciliation_error_body,
@@ -1271,43 +1270,6 @@ def complete_payment():
             ht_origin=ht.postmessage_origin,
             ht_token_min_length=ht.token_min_length,
             ht_token_max_length=ht.token_max_length,
-        )
-    )
-    response.headers["Content-Security-Policy"] = f"frame-src {ht.postmessage_origin}"
-    return response
-
-
-# TEMPORARY: production Hosted Tokenization iframe render check.
-# Remove after verifying the production iframe loads from the public origin.
-# Does not unpause bookings, create a payment session, tokenize, or call
-# Moneris/Supabase. Auth is POST-body PAYMENT_RECONCILIATION_ADMIN_SECRET.
-HT_RENDER_CHECK_PATH = "/internal/ht-render-check"
-
-
-@app.route(HT_RENDER_CHECK_PATH, methods=["GET", "POST"])
-@limiter.limit("5 per minute")
-def ht_render_check():
-    """TEMPORARY production HT iframe render check. Remove after verification."""
-    if request.method == "GET":
-        return render_template("ht_render_check_auth.html")
-
-    try:
-        authorize_reconciliation_admin_posted_secret(request.form.get("secret"))
-    except PaymentReconciliationError as exc:
-        if exc.status == 401:
-            return "Unauthorized.", 401
-        return "Hosted Tokenization render check is unavailable.", exc.status
-
-    try:
-        ht = load_hosted_tokenization_browser_config()
-    except HostedTokenizationConfigError:
-        logger.error("hosted tokenization config invalid")
-        return "Hosted Tokenization render check is unavailable.", 503
-
-    response = make_response(
-        render_template(
-            "ht_render_check.html",
-            ht_iframe_src=ht.iframe_src,
         )
     )
     response.headers["Content-Security-Policy"] = f"frame-src {ht.postmessage_origin}"
