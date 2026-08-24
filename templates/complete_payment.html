@@ -47,7 +47,33 @@
             line-height: 1.5;
             color: #555;
         }
-        #moneris-host { margin: 8px 0 0; }
+        .card-title-area {
+            display: flex;
+            align-items: center;
+            margin: 8px 0 12px;
+        }
+        .icon-circle {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 145, 167, 0.28);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        .icon-circle svg {
+            display: block;
+        }
+        .card-title-area h2 {
+            font-family: 'Inter', sans-serif;
+            font-weight: 700;
+            font-size: 1.15rem;
+            margin: 0;
+            color: var(--text-dark);
+        }
+        #moneris-host { margin: 0; }
         #monerisFrame {
             width: 100%;
             height: 340px;
@@ -113,6 +139,15 @@
                 or for your stay when applicable.
             </p>
             <p id="pay-status" class="status">Waiting to connect payment.</p>
+            <div class="card-title-area">
+                <div class="icon-circle" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="2.75" y="5.75" width="18.5" height="12.5" rx="1.75" stroke="#D63683" stroke-width="1.5"/>
+                        <rect x="2.75" y="9" width="18.5" height="2.5" fill="#ff5778"/>
+                    </svg>
+                </div>
+                <h2>Credit Card Information</h2>
+            </div>
             <div id="moneris-host"></div>
             <p id="no-charge-note" class="no-charge-note" hidden>You will not be charged at this step.</p>
             <div id="tokenize-host"></div>

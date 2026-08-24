@@ -157,7 +157,11 @@ def test_sandbox_renders_sandbox_ht_url_only(
     assert f'var htOrigin = "{SANDBOX_ORIGIN}"' in html
     assert "Card required to secure your reservation" in html
     assert "No charge or pre-authorization" in html
+    assert "Credit Card Information" in html
+    assert "Hosted Tokenization production render check" not in html
     assert "Save card & confirm reservation" in html
+    assert "#ff5778" in html
+    assert "#D63683" in html
     assert 'button.textContent = "Complete payment"' not in html
     assert resp.headers.get("Content-Security-Policy") == f"frame-src {SANDBOX_ORIGIN}"
 
@@ -288,7 +292,11 @@ def test_template_security_invariants():
     assert "eval(" not in combined
     assert "Card required to secure your reservation" in html
     assert "No charge or pre-authorization" in html
+    assert "Credit Card Information" in html
+    assert "Hosted Tokenization production render check" not in html
     assert "Save card & confirm reservation" in html
+    assert "#ff5778" in html
+    assert "#D63683" in html
     assert 'button.textContent = "Complete payment"' not in html
     assert 'button.textContent = "Pay now"' not in html
     assert 'button.textContent = "Submit payment"' not in html
