@@ -59,6 +59,22 @@ from payment_reconciliation import (
     release_held_payment_confirmed_failure,
     require_pending_v7_for_reconciliation,
 )
+from payment_prod_validation_test import (
+    COOKIE_NAME as PROD_VALIDATION_TEST_COOKIE,
+    ProdValidationTestError,
+    START_PATH as PROD_VALIDATION_TEST_PATH,
+    QA_SPECIAL_REQUESTS,
+    apply_capability_cookie,
+    authorize_form_secret,
+    capability_allows_complete_payment_page,
+    capability_matches_payment_session,
+    clear_capability_cookie,
+    configured_test_email,
+    mint_capability,
+    qa_guest_payload,
+    require_production_api_and_ht_config,
+    select_qa_stay,
+)
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -1247,8 +1263,13 @@ def complete_payment():
     Hosted Tokenization iframe is created only after a payment-session token
     is present in sessionStorage. The raw token must not appear in this URL.
     Page is pending_v7 only.
+
+    TEMPORARY: while DIRECT_BOOKINGS_PAUSED is True, the single QA capability
+    minted by /internal/prod-card-validation-test may load this real page.
+    Public requests still redirect to /booking-paused. This does not unpause
+    /booking, /booker_contact, /final_details, or /confirm-booking.
     """
-    if _booking_funnel_blocked():
+    if _booking_funnel_blocked() and not capability_allows_complete_payment_page(request):
         return redirect('/booking-paused')
     try:
         enabled = uses_pending_payment_rpc()
@@ -1283,23 +1304,30 @@ def handle_complete_payment():
 
     Browser may send only payment_session_token + dataKey. Unavailable on
     live_v6. Claim commits before any Moneris HTTP.
+
+    TEMPORARY: while paused, accept only when the QA capability is valid
+    AND bound to the submitted payment_session_token. Otherwise reject
+    before claim/Moneris. Success and any PaymentCompletionError with
+    retry_payment != True clear the TEMPORARY capability cookie.
+    retry_payment=true keeps the same cookie for the same session.
     """
+    payload = request.get_json(silent=True)
     if _booking_funnel_blocked():
-        return jsonify({"success": False, "error": PAUSED_BOOKING_ERROR}), 403
+        raw_token = payload.get("payment_session_token") if isinstance(payload, dict) else None
+        if not capability_matches_payment_session(request, raw_token):
+            return jsonify({"success": False, "error": PAUSED_BOOKING_ERROR}), 403
 
     try:
         require_pending_v7_contract()
     except PaymentCompletionError as exc:
-        return jsonify(payment_completion_error_body(exc)), exc.status
+        return _temporary_prod_validation_completion_response(exc)
 
     ok, err = _supabase_required()
     if not ok:
         return jsonify({"success": False, "error": err}), 503
 
     try:
-        token, data_key = parse_browser_payment_request(
-            request.get_json(silent=True)
-        )
+        token, data_key = parse_browser_payment_request(payload)
         body = complete_pending_payment(
             payment_session_token=token,
             data_key=data_key,
@@ -1312,8 +1340,127 @@ def handle_complete_payment():
             ),
         )
     except PaymentCompletionError as exc:
-        return jsonify(payment_completion_error_body(exc)), exc.status
-    return jsonify(body), 200
+        return _temporary_prod_validation_completion_response(exc)
+    response = make_response(jsonify(body), 200)
+    if body.get("success") and request.cookies.get(PROD_VALIDATION_TEST_COOKIE):
+        clear_capability_cookie(response)
+    return response
+
+
+def _temporary_prod_validation_completion_response(exc: PaymentCompletionError):
+    """Preserve completion error JSON; clear TEMPORARY capability unless retryable."""
+    response = make_response(jsonify(payment_completion_error_body(exc)), exc.status)
+    if not exc.retry_payment and request.cookies.get(PROD_VALIDATION_TEST_COOKIE):
+        clear_capability_cookie(response)
+    return response
+
+
+@app.route(PROD_VALIDATION_TEST_PATH, methods=["GET", "POST"])
+@limiter.limit("5 per minute")
+def prod_card_validation_test():
+    """TEMPORARY operator start for one production card-validation attempt.
+
+    GET: password form only. Does not create a reservation or set a capability.
+    POST: form-body secret only; creates exactly one QA pending_payment
+    reservation through the existing persist path, then hands off to the
+    real /complete-payment page. Remove after the authorized test.
+    """
+    if request.method == "GET":
+        return render_template("prod_validation_test_auth.html")
+
+    try:
+        authorize_form_secret(request.form.get("secret"))
+        if not DIRECT_BOOKINGS_PAUSED:
+            logger.error("temporary prod card-validation test refused: bookings not paused")
+            raise ProdValidationTestError(
+                "Production card-validation test is unavailable.",
+                status=503,
+            )
+        try:
+            pending_rpc = uses_pending_payment_rpc()
+        except BookingRpcContractError:
+            logger.error("temporary prod card-validation test refused: invalid contract")
+            raise ProdValidationTestError(
+                "Production card-validation test is unavailable.",
+                status=503,
+            ) from None
+        if not pending_rpc:
+            logger.error("temporary prod card-validation test refused: contract is not pending_v7")
+            raise ProdValidationTestError(
+                "Production card-validation test is unavailable.",
+                status=503,
+            )
+        require_production_api_and_ht_config()
+        email = configured_test_email()
+        if email is None:
+            logger.error("temporary prod card-validation test refused: QA email missing or invalid")
+            raise ProdValidationTestError(
+                "Production card-validation test is unavailable.",
+                status=503,
+            )
+        cancel_secret = configured_cancellation_token_secret()
+        if cancel_secret is None:
+            logger.error("temporary prod card-validation test refused: cancellation secret unavailable")
+            raise ProdValidationTestError(
+                "Production card-validation test is unavailable.",
+                status=503,
+            )
+        ok, _err = _supabase_required()
+        if not ok:
+            logger.error("temporary prod card-validation test refused: supabase unavailable")
+            raise ProdValidationTestError(
+                "Production card-validation test is unavailable.",
+                status=503,
+            )
+        guest_ok, guest_result = validate_guest_payload(qa_guest_payload(email))
+        if not guest_ok:
+            logger.error("temporary prod card-validation test refused: QA guest payload invalid")
+            raise ProdValidationTestError(
+                "Production card-validation test is unavailable.",
+                status=503,
+            )
+        stay = select_qa_stay(ROOM_CATALOG.keys(), _validate_itinerary)
+        if stay is None:
+            logger.error("temporary prod card-validation test refused: no available QA room")
+            raise ProdValidationTestError(
+                "Production card-validation test is unavailable.",
+                status=503,
+            )
+        check_in, check_out, rooms_req, result = stay
+        try:
+            booking_ref = _generate_booking_reference()
+        except RuntimeError:
+            logger.error("temporary prod card-validation test refused: booking reference failed")
+            raise ProdValidationTestError(
+                "Production card-validation test is unavailable.",
+                status=503,
+            ) from None
+        confirmation_token = secrets.token_urlsafe(32)
+        cancellation_token_hash = create_placeholder_hash(cancel_secret, booking_ref)
+        payment_session_token = generate_payment_session_token()
+        payment_session_token_hash = hash_payment_session_token(payment_session_token)
+        persisted = _persist_booking(
+            check_in, check_out, result, rooms_req,
+            guest_result, QA_SPECIAL_REQUESTS, booking_ref,
+            confirmation_token, uuid.uuid4().hex, cancellation_token_hash,
+            session_token_hash=payment_session_token_hash)
+        if not persisted.get("ok"):
+            logger.error("temporary prod card-validation test persist failed")
+            raise ProdValidationTestError(
+                "Production card-validation test is unavailable.",
+                status=503,
+            )
+        capability = mint_capability(payment_session_token_hash)
+        response = make_response(
+            render_template(
+                "prod_validation_test_handoff.html",
+                payment_session_token=payment_session_token,
+            )
+        )
+        apply_capability_cookie(response, capability)
+        return response
+    except ProdValidationTestError as exc:
+        return exc.user_message, exc.status
 
 
 @app.route("/api/internal/expire-payment-sessions", methods=["POST"])

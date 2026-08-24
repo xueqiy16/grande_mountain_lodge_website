@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEMPORARY production card-validation test</title>
+</head>
+<body>
+    <!-- TEMPORARY — remove this template after the production card-validation test.
+         Sets the existing opaque payment-session token the same way the normal
+         booking flow expects, then loads the real /complete-payment page. -->
+    <p>Continuing to card validation…</p>
+    <script>
+      sessionStorage.setItem("gml_payment_session_token", {{ payment_session_token|tojson }});
+      window.location.replace("/complete-payment");
+    </script>
+</body>
+</html>

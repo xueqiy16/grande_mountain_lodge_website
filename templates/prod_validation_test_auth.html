@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEMPORARY production card-validation test</title>
+    <style>
+        body { font-family: sans-serif; max-width: 28rem; margin: 3rem auto; padding: 0 1rem; }
+        label { display: block; margin-bottom: 0.5rem; }
+        input[type="password"] { width: 100%; box-sizing: border-box; padding: 0.5rem; }
+        button { margin-top: 1rem; padding: 0.5rem 1rem; }
+    </style>
+</head>
+<body>
+    <!-- TEMPORARY — remove this template after the production card-validation test. -->
+    <h1>TEMPORARY operator test</h1>
+    <p>Password form only. Hosted Tokenization is not loaded here.</p>
+    <form method="POST" action="/internal/prod-card-validation-test" autocomplete="off">
+        <label for="secret">Secret</label>
+        <input id="secret" type="password" name="secret" required autocomplete="off">
+        <button type="submit">Continue</button>
+    </form>
+</body>
+</html>
