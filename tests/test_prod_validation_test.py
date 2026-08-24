@@ -28,11 +28,13 @@ from payment_prod_validation_test import (
     COOKIE_NAME,
     QA_SPECIAL_REQUESTS,
     SAFE_PERSIST_DIAG_CODES,
+    SAFE_PRE_DIAG_CODES,
     SAFE_UNAVAILABLE,
     START_PATH,
     mint_capability,
     parse_capability,
     persist_failure_user_message,
+    preflight_unavailable_message,
     require_production_api_and_ht_config,
     safe_persist_diag_code,
     select_qa_stay,
@@ -334,12 +336,14 @@ def test_no_charge_surface_in_temporary_path():
     assert "automaticCapture" not in temporary_route
     assert "pre_auth" not in temporary_route
     assert "persist_failure_user_message" in temporary_route
+    assert "preflight_unavailable_message" in temporary_route
     handle_booking = main_src[
         main_src.index("def handle_booking():") : main_src.index(
             "def _legacy_form_booking():"
         )
     ]
     assert "persist_failure_user_message" not in handle_booking
+    assert "preflight_unavailable_message" not in handle_booking
     assert "persist_diag" not in handle_booking
     complete = main_src[
         main_src.index("def handle_complete_payment():") : main_src.index(
@@ -386,10 +390,25 @@ def test_get_start_does_not_echo_query_secret(client, start_stack):
 # ---------------------------------------------------------------------------
 # Auth / fail-closed
 # ---------------------------------------------------------------------------
+def _assert_pre_503(resp, code, persist=None):
+    assert resp.status_code == 503
+    body = resp.get_data(as_text=True)
+    assert body == f"{SAFE_UNAVAILABLE} [{code}]"
+    if persist is not None:
+        assert persist.calls == []
+    _assert_no_sensitive(body)
+    assert "PERSIST_" not in body
+    return body
+
+
 def test_missing_test_secret_config_is_503(client, start_stack, monkeypatch):
     monkeypatch.delenv("PAYMENT_PROD_VALIDATION_TEST_SECRET", raising=False)
     resp = client.post(START_PATH, data={"secret": TEST_SECRET})
     assert resp.status_code == 503
+    body = resp.get_data(as_text=True)
+    assert body == SAFE_UNAVAILABLE
+    assert "PRE_" not in body
+    assert "PERSIST_" not in body
     assert start_stack.calls == []
 
 
@@ -397,6 +416,9 @@ def test_short_test_secret_is_503(client, start_stack, monkeypatch):
     monkeypatch.setenv("PAYMENT_PROD_VALIDATION_TEST_SECRET", "short-secret")
     resp = client.post(START_PATH, data={"secret": "short-secret"})
     assert resp.status_code == 503
+    body = resp.get_data(as_text=True)
+    assert body == SAFE_UNAVAILABLE
+    assert "PRE_" not in body
     assert start_stack.calls == []
 
 
@@ -405,13 +427,19 @@ def test_wrong_secret_is_401(client, start_stack):
     assert resp.status_code == 401
     body = resp.get_data(as_text=True)
     assert start_stack.calls == []
+    assert body == "Unauthorized."
     assert TEST_SECRET not in body
     assert "PERSIST_" not in body
+    assert "PRE_" not in body
 
 
 def test_query_string_secret_cannot_authorize(client, start_stack):
     resp = client.post(f"{START_PATH}?secret={TEST_SECRET}", data={})
     assert resp.status_code == 401
+    body = resp.get_data(as_text=True)
+    assert body == "Unauthorized."
+    assert "PRE_" not in body
+    assert "PERSIST_" not in body
     assert start_stack.calls == []
 
 
@@ -453,35 +481,99 @@ def test_reused_secret_config_fails_closed(client, start_stack, monkeypatch):
     monkeypatch.setenv("PAYMENT_PROD_VALIDATION_TEST_SECRET", RECON_SECRET)
     resp = client.post(START_PATH, data={"secret": RECON_SECRET})
     assert resp.status_code == 503
+    body = resp.get_data(as_text=True)
+    assert body == SAFE_UNAVAILABLE
+    assert "PRE_" not in body
     assert start_stack.calls == []
 
 
 def test_non_production_moneris_env_is_503(client, start_stack, monkeypatch):
     monkeypatch.setenv("MONERIS_ENV", "sandbox")
     resp = client.post(START_PATH, data={"secret": TEST_SECRET})
-    assert resp.status_code == 503
-    assert start_stack.calls == []
+    _assert_pre_503(resp, prod_test.PRE_CONFIG, start_stack)
 
 
 def test_missing_pending_v7_is_503(client, start_stack, monkeypatch):
     monkeypatch.setenv("CREATE_PUBLIC_BOOKING_CONTRACT", "live_v6")
     resp = client.post(START_PATH, data={"secret": TEST_SECRET})
-    assert resp.status_code == 503
-    assert start_stack.calls == []
+    _assert_pre_503(resp, prod_test.PRE_CONTRACT_NOT_PENDING_V7, start_stack)
 
 
 def test_invalid_contract_is_503(client, start_stack, monkeypatch):
     monkeypatch.setenv("CREATE_PUBLIC_BOOKING_CONTRACT", "pending")
     resp = client.post(START_PATH, data={"secret": TEST_SECRET})
-    assert resp.status_code == 503
-    assert start_stack.calls == []
+    _assert_pre_503(resp, prod_test.PRE_CONTRACT_INVALID, start_stack)
 
 
 def test_no_available_room_fails_safely(client, start_stack, monkeypatch):
     monkeypatch.setattr(main, "_validate_itinerary", _unavailable_itinerary)
     resp = client.post(START_PATH, data={"secret": TEST_SECRET})
-    assert resp.status_code == 503
-    assert start_stack.calls == []
+    _assert_pre_503(resp, prod_test.PRE_STAY, start_stack)
+
+
+def test_preflight_unknown_code_is_unsuffixed():
+    assert preflight_unavailable_message("not-a-code") == SAFE_UNAVAILABLE
+    assert preflight_unavailable_message("guest_email_conflict") == SAFE_UNAVAILABLE
+    assert preflight_unavailable_message(prod_test.PRE_EMAIL) == (
+        f"{SAFE_UNAVAILABLE} [{prod_test.PRE_EMAIL}]"
+    )
+    assert SAFE_PRE_DIAG_CODES.isdisjoint(SAFE_PERSIST_DIAG_CODES)
+
+
+def test_paused_false_is_pre_bookings_not_paused(client, start_stack, monkeypatch):
+    src = Path(main.__file__).read_text(encoding="utf-8")
+    assert "DIRECT_BOOKINGS_PAUSED = True" in src
+    monkeypatch.setattr(main, "DIRECT_BOOKINGS_PAUSED", False)
+    resp = client.post(START_PATH, data={"secret": TEST_SECRET})
+    _assert_pre_503(resp, prod_test.PRE_BOOKINGS_NOT_PAUSED, start_stack)
+
+
+def test_missing_qa_email_is_pre_email(client, start_stack, monkeypatch):
+    monkeypatch.delenv("PAYMENT_PROD_VALIDATION_TEST_EMAIL", raising=False)
+    resp = client.post(START_PATH, data={"secret": TEST_SECRET})
+    _assert_pre_503(resp, prod_test.PRE_EMAIL, start_stack)
+
+
+def test_invalid_qa_email_is_pre_email(client, start_stack, monkeypatch):
+    monkeypatch.setenv("PAYMENT_PROD_VALIDATION_TEST_EMAIL", "not-an-email")
+    resp = client.post(START_PATH, data={"secret": TEST_SECRET})
+    body = _assert_pre_503(resp, prod_test.PRE_EMAIL, start_stack)
+    assert "not-an-email" not in body
+
+
+def test_missing_cancel_secret_is_pre_cancel_secret(client, start_stack, monkeypatch):
+    monkeypatch.delenv("CANCELLATION_TOKEN_SECRET", raising=False)
+    resp = client.post(START_PATH, data={"secret": TEST_SECRET})
+    _assert_pre_503(resp, prod_test.PRE_CANCEL_SECRET, start_stack)
+    assert CANCEL_SECRET not in resp.get_data(as_text=True)
+
+
+def test_supabase_unavailable_is_pre_supabase(client, start_stack, monkeypatch):
+    leak = f"SUPABASE_KEY missing for {QA_EMAIL} booking={BOOKING_REF}"
+    monkeypatch.setattr(main, "_supabase_required", lambda: (False, leak))
+    resp = client.post(START_PATH, data={"secret": TEST_SECRET})
+    body = _assert_pre_503(resp, prod_test.PRE_SUPABASE, start_stack)
+    assert leak not in body
+    assert "SUPABASE_KEY" not in body
+
+
+def test_invalid_guest_payload_is_pre_guest(client, start_stack, monkeypatch):
+    leak = f"invalid guest {QA_EMAIL} canonical={CANONICAL}"
+    monkeypatch.setattr(main, "validate_guest_payload", lambda *_a, **_k: (False, leak))
+    resp = client.post(START_PATH, data={"secret": TEST_SECRET})
+    body = _assert_pre_503(resp, prod_test.PRE_GUEST, start_stack)
+    assert leak not in body
+
+
+def test_booking_reference_failure_is_pre_booking_ref(client, start_stack, monkeypatch):
+    def boom():
+        raise RuntimeError(f"collision email={QA_EMAIL} ref={BOOKING_REF}")
+
+    monkeypatch.setattr(main, "_generate_booking_reference", boom)
+    resp = client.post(START_PATH, data={"secret": TEST_SECRET})
+    body = _assert_pre_503(resp, prod_test.PRE_BOOKING_REF, start_stack)
+    assert "collision" not in body
+    assert BOOKING_REF not in body
 
 
 def test_preflight_reuses_payment_completion_environ_adapter():
@@ -527,9 +619,10 @@ def test_preflight_fails_closed_without_supabase_server_credential(
             require_production_api_and_ht_config()
         resp = client.post(START_PATH, data={"secret": TEST_SECRET})
     assert ctx.value.status == 503
-    assert str(ctx.value) == "Production card-validation test is unavailable."
+    assert str(ctx.value) == f"{SAFE_UNAVAILABLE} [{prod_test.PRE_CONFIG}]"
     assert WEBSITE_SUPABASE_SECRET not in str(ctx.value)
     assert resp.status_code == 503
+    assert resp.get_data(as_text=True) == f"{SAFE_UNAVAILABLE} [{prod_test.PRE_CONFIG}]"
     assert start_stack.calls == []
     _assert_no_sensitive(caplog.text)
     _assert_no_sensitive(resp.get_data(as_text=True))
@@ -553,6 +646,7 @@ def test_post_confirm_booking_remains_blocked(client):
     assert "temporarily disabled" in body["error"]
     assert "persist_diag" not in body
     assert "PERSIST_" not in resp.get_data(as_text=True)
+    assert "PRE_" not in resp.get_data(as_text=True)
 
 
 def test_ordinary_get_complete_payment_remains_blocked(client):
@@ -1157,4 +1251,5 @@ def test_confirm_booking_does_not_expose_persist_diag(client, monkeypatch):
     assert "persist_diag" not in raw
     assert "PERSIST_RPC_GENERIC" not in raw
     assert "PERSIST_" not in raw
+    assert "PRE_" not in raw
     _assert_no_sensitive(raw)

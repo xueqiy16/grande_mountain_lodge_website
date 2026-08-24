@@ -70,6 +70,15 @@ from payment_prod_validation_test import (
     PERSIST_RPC_GENERIC,
     PERSIST_STALE_PROCESSING,
     PERSIST_STATE_INCONSISTENT,
+    PRE_BOOKING_REF,
+    PRE_BOOKINGS_NOT_PAUSED,
+    PRE_CANCEL_SECRET,
+    PRE_CONTRACT_INVALID,
+    PRE_CONTRACT_NOT_PENDING_V7,
+    PRE_EMAIL,
+    PRE_GUEST,
+    PRE_STAY,
+    PRE_SUPABASE,
     ProdValidationTestError,
     START_PATH as PROD_VALIDATION_TEST_PATH,
     QA_SPECIAL_REQUESTS,
@@ -81,6 +90,7 @@ from payment_prod_validation_test import (
     configured_test_email,
     mint_capability,
     persist_failure_user_message,
+    preflight_unavailable_message,
     qa_guest_payload,
     require_production_api_and_ht_config,
     safe_persist_diag_code,
@@ -1405,68 +1415,68 @@ def prod_card_validation_test():
     try:
         authorize_form_secret(request.form.get("secret"))
         if not DIRECT_BOOKINGS_PAUSED:
-            logger.error("temporary prod card-validation test refused: bookings not paused")
+            logger.error("temporary prod card-validation test refused: PRE_BOOKINGS_NOT_PAUSED")
             raise ProdValidationTestError(
-                "Production card-validation test is unavailable.",
+                preflight_unavailable_message(PRE_BOOKINGS_NOT_PAUSED),
                 status=503,
             )
         try:
             pending_rpc = uses_pending_payment_rpc()
         except BookingRpcContractError:
-            logger.error("temporary prod card-validation test refused: invalid contract")
+            logger.error("temporary prod card-validation test refused: PRE_CONTRACT_INVALID")
             raise ProdValidationTestError(
-                "Production card-validation test is unavailable.",
+                preflight_unavailable_message(PRE_CONTRACT_INVALID),
                 status=503,
             ) from None
         if not pending_rpc:
-            logger.error("temporary prod card-validation test refused: contract is not pending_v7")
+            logger.error("temporary prod card-validation test refused: PRE_CONTRACT_NOT_PENDING_V7")
             raise ProdValidationTestError(
-                "Production card-validation test is unavailable.",
+                preflight_unavailable_message(PRE_CONTRACT_NOT_PENDING_V7),
                 status=503,
             )
         require_production_api_and_ht_config()
         email = configured_test_email()
         if email is None:
-            logger.error("temporary prod card-validation test refused: QA email missing or invalid")
+            logger.error("temporary prod card-validation test refused: PRE_EMAIL")
             raise ProdValidationTestError(
-                "Production card-validation test is unavailable.",
+                preflight_unavailable_message(PRE_EMAIL),
                 status=503,
             )
         cancel_secret = configured_cancellation_token_secret()
         if cancel_secret is None:
-            logger.error("temporary prod card-validation test refused: cancellation secret unavailable")
+            logger.error("temporary prod card-validation test refused: PRE_CANCEL_SECRET")
             raise ProdValidationTestError(
-                "Production card-validation test is unavailable.",
+                preflight_unavailable_message(PRE_CANCEL_SECRET),
                 status=503,
             )
         ok, _err = _supabase_required()
         if not ok:
-            logger.error("temporary prod card-validation test refused: supabase unavailable")
+            logger.error("temporary prod card-validation test refused: PRE_SUPABASE")
             raise ProdValidationTestError(
-                "Production card-validation test is unavailable.",
+                preflight_unavailable_message(PRE_SUPABASE),
                 status=503,
             )
         guest_ok, guest_result = validate_guest_payload(qa_guest_payload(email))
         if not guest_ok:
-            logger.error("temporary prod card-validation test refused: QA guest payload invalid")
+            logger.error("temporary prod card-validation test refused: PRE_GUEST")
             raise ProdValidationTestError(
-                "Production card-validation test is unavailable.",
+                preflight_unavailable_message(PRE_GUEST),
                 status=503,
             )
         stay = select_qa_stay(ROOM_CATALOG.keys(), _validate_itinerary)
         if stay is None:
-            logger.error("temporary prod card-validation test refused: no available QA room")
+            logger.error("temporary prod card-validation test refused: PRE_STAY")
             raise ProdValidationTestError(
-                "Production card-validation test is unavailable.",
+                preflight_unavailable_message(PRE_STAY),
                 status=503,
             )
         check_in, check_out, rooms_req, result = stay
         try:
             booking_ref = _generate_booking_reference()
         except RuntimeError:
-            logger.error("temporary prod card-validation test refused: booking reference failed")
+            logger.error("temporary prod card-validation test refused: PRE_BOOKING_REF")
             raise ProdValidationTestError(
-                "Production card-validation test is unavailable.",
+                preflight_unavailable_message(PRE_BOOKING_REF),
                 status=503,
             ) from None
         confirmation_token = secrets.token_urlsafe(32)

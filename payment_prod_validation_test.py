@@ -105,6 +105,34 @@ SAFE_PERSIST_DIAG_CODES = frozenset(
     }
 )
 
+# TEMPORARY operator-only pre-persist categories. Public booking routes
+# must never copy these into a browser response.
+PRE_BOOKINGS_NOT_PAUSED = "PRE_BOOKINGS_NOT_PAUSED"
+PRE_CONTRACT_INVALID = "PRE_CONTRACT_INVALID"
+PRE_CONTRACT_NOT_PENDING_V7 = "PRE_CONTRACT_NOT_PENDING_V7"
+PRE_CONFIG = "PRE_CONFIG"
+PRE_EMAIL = "PRE_EMAIL"
+PRE_CANCEL_SECRET = "PRE_CANCEL_SECRET"
+PRE_SUPABASE = "PRE_SUPABASE"
+PRE_GUEST = "PRE_GUEST"
+PRE_STAY = "PRE_STAY"
+PRE_BOOKING_REF = "PRE_BOOKING_REF"
+
+SAFE_PRE_DIAG_CODES = frozenset(
+    {
+        PRE_BOOKINGS_NOT_PAUSED,
+        PRE_CONTRACT_INVALID,
+        PRE_CONTRACT_NOT_PENDING_V7,
+        PRE_CONFIG,
+        PRE_EMAIL,
+        PRE_CANCEL_SECRET,
+        PRE_SUPABASE,
+        PRE_GUEST,
+        PRE_STAY,
+        PRE_BOOKING_REF,
+    }
+)
+
 _EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 
@@ -177,6 +205,13 @@ def persist_failure_user_message(persisted) -> str:
     return f"{SAFE_UNAVAILABLE} [{safe_persist_diag_code(persisted)}]"
 
 
+def preflight_unavailable_message(code: str) -> str:
+    """TEMPORARY operator 503. Uses only an allowlisted pre-persist category."""
+    if not isinstance(code, str) or code not in SAFE_PRE_DIAG_CODES:
+        return SAFE_UNAVAILABLE
+    return f"{SAFE_UNAVAILABLE} [{code}]"
+
+
 def authorize_form_secret(provided) -> None:
     """Authorize a form-body secret only. Query/Bearer/JSON are ignored.
 
@@ -195,7 +230,9 @@ def authorize_form_secret(provided) -> None:
 def require_production_moneris_env() -> None:
     env = (os.getenv("MONERIS_ENV") or "").strip()
     if env != "production":
-        raise ProdValidationTestError(SAFE_UNAVAILABLE, status=503)
+        raise ProdValidationTestError(
+            preflight_unavailable_message(PRE_CONFIG), status=503
+        )
 
 
 def require_production_api_and_ht_config() -> None:
@@ -210,19 +247,27 @@ def require_production_api_and_ht_config() -> None:
         from payment_completion import _payment_api_environ
     except ImportError:
         logger.error("temporary prod card-validation test config import failed")
-        raise ProdValidationTestError(SAFE_UNAVAILABLE, status=503) from None
+        raise ProdValidationTestError(
+            preflight_unavailable_message(PRE_CONFIG), status=503
+        ) from None
     try:
         config = load_config(_payment_api_environ())
     except PaymentConfigError:
         logger.error("temporary prod card-validation test payment_api config invalid")
-        raise ProdValidationTestError(SAFE_UNAVAILABLE, status=503) from None
+        raise ProdValidationTestError(
+            preflight_unavailable_message(PRE_CONFIG), status=503
+        ) from None
     if getattr(config, "moneris_env", None) != "production":
-        raise ProdValidationTestError(SAFE_UNAVAILABLE, status=503)
+        raise ProdValidationTestError(
+            preflight_unavailable_message(PRE_CONFIG), status=503
+        )
     try:
         load_hosted_tokenization_browser_config()
     except HostedTokenizationConfigError:
         logger.error("temporary prod card-validation test HT config invalid")
-        raise ProdValidationTestError(SAFE_UNAVAILABLE, status=503) from None
+        raise ProdValidationTestError(
+            preflight_unavailable_message(PRE_CONFIG), status=503
+        ) from None
 
 
 def qa_guest_payload(email: str) -> dict:

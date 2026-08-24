@@ -597,6 +597,7 @@ def test_confirm_booking_apierror_browser_stays_generic(
     assert "does not exist" not in raw
     assert GUEST["email"] not in raw
     assert "PERSIST_" not in raw
+    assert "PRE_" not in raw
     _assert_no_sentinels(body)
     assert "type=APIError" in caplog.text
     assert "code=42883" not in caplog.text
