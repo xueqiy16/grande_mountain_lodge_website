@@ -21,6 +21,7 @@ Those messages are already safe and do not include tokens.
 
 from __future__ import annotations
 
+import logging
 import uuid
 from dataclasses import dataclass
 from typing import Any, Optional
@@ -29,7 +30,26 @@ import requests
 
 from payment_api.auth import OAUTH_TIMEOUT, get_access_token
 from payment_api.config import PaymentConfig
-from payment_api.errors import MonerisValidationError
+from payment_api.errors import MonerisAuthError, MonerisValidationError
+
+logger = logging.getLogger(__name__)
+
+# Temporary production-safe diagnostic. Logs only an allowlisted category
+# and optional integer HTTP status. Never log bodies, tokens, or headers.
+_DIAG_AUTH = "MONERIS_AUTH"
+_DIAG_TRANSPORT = "MONERIS_TRANSPORT"
+_DIAG_HTTP_5XX = "MONERIS_HTTP_5XX"
+_DIAG_HTTP_4XX_UNKNOWN = "MONERIS_HTTP_4XX_UNKNOWN"
+_DIAG_INVALID_RESPONSE = "MONERIS_INVALID_RESPONSE"
+_DIAG_CATEGORIES = frozenset(
+    {
+        _DIAG_AUTH,
+        _DIAG_TRANSPORT,
+        _DIAG_HTTP_5XX,
+        _DIAG_HTTP_4XX_UNKNOWN,
+        _DIAG_INVALID_RESPONSE,
+    }
+)
 
 VALIDATIONS_PATH = "/validations"
 PAYMENT_METHOD_SOURCE_TEMPORARY_TOKEN = "TEMPORARY_TOKEN"
@@ -85,9 +105,18 @@ def validate_card(
     """
     token = _require_data_key(data_key)
     key = _require_idempotency_key(idempotency_key)
-    access_token = get_access_token(config)
-    payload = _request_validation(config, access_token, token, key)
-    return _parse_validation_result(payload)
+    try:
+        access_token = get_access_token(config)
+    except MonerisAuthError:
+        _log_card_validation_diag(_DIAG_AUTH)
+        raise
+    try:
+        payload = _request_validation(config, access_token, token, key)
+        return _parse_validation_result(payload)
+    except MonerisValidationError as exc:
+        if exc.category == MonerisValidationError.INVALID_RESPONSE:
+            _log_card_validation_diag(_DIAG_INVALID_RESPONSE)
+        raise
 
 
 def _require_idempotency_key(idempotency_key: object) -> str:
@@ -158,6 +187,7 @@ def _request_validation(
             timeout=OAUTH_TIMEOUT,
         )
     except requests.RequestException:
+        _log_card_validation_diag(_DIAG_TRANSPORT)
         raise MonerisValidationError(
             "Moneris Card Validation request failed",
             category=MonerisValidationError.PROCESSOR_UNAVAILABLE,
@@ -166,6 +196,21 @@ def _request_validation(
     if not (200 <= response.status_code < 300):
         _raise_non_2xx_validation_error(response)
     return _parse_json_object(response)
+
+
+def _log_card_validation_diag(
+    category: str, http_status: object = None
+) -> None:
+    if category not in _DIAG_CATEGORIES:
+        return
+    if isinstance(http_status, int):
+        logger.error(
+            "moneris_card_validation_diag=%s http_status=%s",
+            category,
+            http_status,
+        )
+        return
+    logger.error("moneris_card_validation_diag=%s", category)
 
 
 PROBLEM_JSON_DECLINED = "DECLINED_ERROR"
@@ -177,6 +222,7 @@ def _raise_non_2xx_validation_error(response: requests.Response) -> None:
     status_code = response.status_code
     message = _http_error_message(status_code)
     if isinstance(status_code, int) and status_code >= 500:
+        _log_card_validation_diag(_DIAG_HTTP_5XX, status_code)
         raise MonerisValidationError(
             message,
             category=MonerisValidationError.PROCESSOR_UNAVAILABLE,
@@ -192,6 +238,7 @@ def _raise_non_2xx_validation_error(response: requests.Response) -> None:
             message,
             category=MonerisValidationError.INVALID_REQUEST,
         )
+    _log_card_validation_diag(_DIAG_HTTP_4XX_UNKNOWN, status_code)
     raise MonerisValidationError(
         message,
         category=MonerisValidationError.PROCESSOR_UNAVAILABLE,
